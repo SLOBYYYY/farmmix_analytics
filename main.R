@@ -17,7 +17,7 @@ drawPieChart = function (data, text) {
     percentages = round(slices/sum(slices)*100)
     labels = paste(labels, percentages)
     labels = paste(labels, "%", sep="")
-    labels = paste(labels, " (", slices, ")", sep="")
+    labels = paste(labels, " (", round(slices, digits=0), ")", sep="")
     pie(slices, labels = labels, col=rainbow(length(labels)),
         main=text)
 }
@@ -88,53 +88,77 @@ drawTopXProducts = function (dbConnection, topX) {
 drawTopXProducts(connection, 10)
 
 drawTopXFarmmixProducts = function (dbConnection, topX) {
-    
+    if (is.numeric(topX)) {
+        topXSoldTetel = dbGetQuery(dbConnection,
+                                     paste("select first", topX, "termek.nev, sum(szamlatetel.eladar) as \"EladarSum\"",
+                                           "from szamlatetel join ", 
+                                           "termek on termek.id_termek = szamlatetel.id_termek join",
+                                           "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo",
+                                           "where forgalmazo.nev like '%FARMMIX%'",
+                                           "group by termek.nev",
+                                           "order by \"EladarSum\" desc"))
+        #topXSoldTetel = rename(topXSoldTetel, c('ID_TERMEK'='Id', 'ELADAR'='Eladar.sum'))
+        colors = terrain.colors(topX)
+        soldTetel.barplot = barplot(topXSoldTetel[,2], 
+                                 #names.arg=topXSoldTetel[,'NEV'], 
+                                 cex.names=0.6, 
+                                 xlab="Top Termékek",
+                                 ylab="Eladott mennyiség (Ft)", 
+                                 ylim=c(0,max(topXSoldTetel[,2]) * 1.2),
+                                 col=colors)
+        text(soldTetel.barplot, topXSoldTetel[,2], labels=topXSoldTetel[,2], pos=3, cex=0.7)
+        legend("topright", legend = topXSoldTetel[,'NEV'], fill=colors, cex=0.7)
+    } else {
+        stop("The topX variable should be a number")
+    }
 }
 
-termek.full = data.frame('Id' = termek$ID_TERMEK, 'Nev'=termek$NEV, 'Eladar.Sum'=NA, 'Eladott.Menny'=NA, 'Egyseg.Ertek'=NA)
-termek.full = arrange(termek.full, Id)
-termek.full$Eladar.Sum = sapply(termek.full$Id, function (x) { if (x %in% termek.by.sale$ID_TERMEK) { termek.by.sale$ELADAR[which(termek.by.sale$ID_TERMEK==x)] } else { NA } })
-termek.full[!is.na(termek.full$Eladar.Sum), 'Eladott.Menny'] = szamlatetel.frequency[ ,'Freq']
-termek.full[!is.na(termek.full$Eladar.Sum), 'Egyseg.Ertek'] = termek.full[!is.na(termek.full$Eladar.Sum),'Eladar.Sum'] / termek.full[!is.na(termek.full$Eladar.Sum),'Eladott.Menny']
-termek.full.ordered = arrange(termek.full, -Eladar.Sum)
+drawTopXFarmmixProducts(connection, 10)
 
-# We plot a barplot for the top 5 products that sell
-top.x.termek = 5
-termek.barplot = barplot(termek.full.ordered[1:top.x.termek,'Eladar.Sum'], 
-                         names.arg=termek.full.ordered[1:top.x.termek,'Nev'], 
-                         cex.names=0.6, 
-                         xlab="Top Termékek",
-                         ylab="Eladott mennyiség (Ft)", 
-                         ylim=c(0,max(termek.full.ordered[1:5,'Eladar.Sum']) * 1.2))
-text(termek.barplot, termek.full.ordered[1:5,'Eladar.Sum'], labels=termek.full.ordered[1:5,'Eladar.Sum'], pos=3)
+topXIsWhatPercentOfAllProducts = function (dbConnection, topX) {
+    if (is.numeric(topX)) {
+        topXSoldTetel = dbGetQuery(dbConnection,
+                                     paste("select first", topX, "termek.nev, sum(szamlatetel.eladar) as \"EladarSum\"",
+                                           "from szamlatetel join ", 
+                                           "termek on termek.id_termek = szamlatetel.id_termek join",
+                                           "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo",
+                                           "group by termek.nev",
+                                           "order by \"EladarSum\" desc"))
+        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar) from szamlatetel")
+        products = ""
+        for (i in 1:topX) {
+            products = paste(products, topXSoldTetel[i,1], sep=" | ")
+        }
+        print(paste("Termékek: ", products))
+        print(paste("A top", topX, "termék a bevétel", round(sum(topXSoldTetel[,2], na.rm=T) / sumSoldTetel[1,1] * 100, 2), '%-át hozzák'))
+    } else {
+        stop("The topX variable should be a number")
+    }
+}
 
-# What percent of the top product sales is of the total sales?
-paste(round(termek.full.ordered[1,'Eladar.Sum'] / sum(termek.full.ordered[,'Eladar.Sum'],na.rm=T) * 100, 2), '%')
+topXIsWhatPercentOfAllProducts(connection, 5)
 
-forgalmazo.farmmix.ids = dbGetQuery(connection, "select id_forgalmazo from forgalmazo where nev like '%FARMMIX%'")
-termek.farmmix = termek[termek$ID_FORGALMAZO %in% forgalmazo.farmmix.ids$ID_FORGALMAZO,]
-termek.farmmix.ordered = na.omit(termek.full.ordered[termek.full.ordered$Id %in% termek.farmmix$ID_TERMEK,])
+topXFarmmixIsWhatPercentOfAllProducts = function (dbConnection, topX) {
+    if (is.numeric(topX)) {
+        topXSoldTetel = dbGetQuery(dbConnection,
+                                     paste("select first", topX, "termek.nev, sum(szamlatetel.eladar) as \"EladarSum\"",
+                                           "from szamlatetel join ", 
+                                           "termek on termek.id_termek = szamlatetel.id_termek join",
+                                           "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo",
+                                           "where forgalmazo.nev like '%FARMMIX%'",
+                                           "group by termek.nev",
+                                           "order by \"EladarSum\" desc"))
+        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar) from szamlatetel")
+        products = ""
+        for (i in 1:topX) {
+            products = paste(products, topXSoldTetel[i,1], sep=" | ")
+        }
+        print(paste("Farmmix termékek: ", products))
+        print(paste("A top", topX, "Farmmix termék a bevétel", round(sum(topXSoldTetel[,2], na.rm=T) / sumSoldTetel[1,1] * 100, 2), '%-át hozzák'))
+    } else {
+        stop("The topX variable should be a number")
+    }
+}
 
-termek.farmmix.barplot = barplot(termek.farmmix.ordered[1:top.x.termek,'Eladar.Sum'], 
-                         names.arg=termek.farmmix.ordered[1:top.x.termek,'Nev'], 
-                         cex.names=0.5, 
-                         xlab="Top Farmmix termékek",
-                         ylab="Eladott mennyiség (Ft)", 
-                         ylim=c(0,max(termek.farmmix.ordered[1:5,'Eladar.Sum']) * 1.2))
-text(termek.farmmix.barplot, termek.farmmix.ordered[1:5,'Eladar.Sum'], labels=termek.farmmix.ordered[1:5,'Eladar.Sum'], pos=3)
-
-# What percent of the top 20% product sales is of the total sales?
-paste(round(sum(termek.full.ordered[1:(round(dim(na.omit(termek.full.ordered))[1] * 0.05)),'Eladar.Sum'],na.rm=T) / sum(termek.full.ordered[,'Eladar.Sum'],na.rm=T) * 100, 2), '%')
-
-forgalmazo.farmmix.ids = dbGetQuery(connection, "select id_forgalmazo from forgalmazo where nev like '%FARMMIX%'")
-termek.farmmix = termek[termek$ID_FORGALMAZO %in% forgalmazo.farmmix.ids$ID_FORGALMAZO,]
-termek.farmmix.ordered = na.omit(termek.full.ordered[termek.full.ordered$Id %in% termek.farmmix$ID_TERMEK,])
-
-termek.farmmix.barplot = barplot(termek.farmmix.ordered[1:top.x.termek,'Eladar.Sum'], 
-                         names.arg=termek.farmmix.ordered[1:top.x.termek,'Nev'], 
-                         cex.names=0.5, 
-                         xlab="Top Farmmix termékek",
-                         ylab="Eladott mennyiség (Ft)", 
-                         ylim=c(0,max(termek.farmmix.ordered[1:5,'Eladar.Sum']) * 1.2))
-text(termek.farmmix.barplot, termek.farmmix.ordered[1:5,'Eladar.Sum'], labels=termek.farmmix.ordered[1:5,'Eladar.Sum'], pos=3)
+topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
 
