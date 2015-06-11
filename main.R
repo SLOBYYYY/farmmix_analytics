@@ -1,12 +1,14 @@
 #install.packages("RJDBC", dependencies=T)
 library("RJDBC")
+dbPassword = "zOMOEd5f"
+dbName = "dbs_bosz_2015.fdb"
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
-           "/home/sloby/projects/sandbox/r-jdbc/jdbc-driver/jaybird-full-2.2.7.jar",
+           "./jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
 connection = dbConnect(drv, 
-                       "jdbc:firebirdsql://127.0.0.1:3050//databases/dbs.fdb",
-                       "SYSDBA", "8ggOhIPO")
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", dbName, sep=""),
+                       "SYSDBA", dbPassword)
 
 library(plyr)
 
@@ -42,25 +44,6 @@ drawTermekCsoportForSoldTermekek = function (dbConnection) {
 
 drawTermekCsoportForSoldTermekek(connection)
 
-
-#iconv(termekcsoport$NEV, "latin1", "UTF-8")
-
-###############################################################################
-# We are interested in the top selling products
-#termek = dbGetQuery(connection, "select * from termek")
-szamla =  dbGetQuery(connection, "select * from szamla")
-szamlatetel =  dbGetQuery(connection, "select * from szamlatetel")
-szamlatetel.frequency = data.frame(table(szamlatetel$ID_TERMEK))
-termek.length = length(unique(szamlatetel$ID_TERMEK))
-# We get the top 10% selling products
-szamlatetel.frequency.top10 = arrange(szamlatetel.frequency,-Freq)[1:(termek.length/10),]
-szamlatetel.frequency.top10 = rename(szamlatetel.frequency.top10, c('Var1'='ID_TERMEK'))
-# Get the names of these top selling products
-szamlatetel.frequency.top10$NEV = termek$NEV[termek$ID_TERMEK %in% szamlatetel.frequency.top10$ID_TERMEK]
-# Sum the price of all termek
-termek.by.sale = aggregate(. ~ ID_TERMEK, data=szamlatetel[,c('ID_TERMEK', 'ELADAR')], FUN=sum)
-termek.by.sale.top10 = arrange(termek.by.sale,-ELADAR)[1:(termek.length/10),]
-termek.by.sale.top10 = rename(termek.by.sale.top10, c('ID_TERMEK'='Id', 'ELADAR'='Eladar.sum'))
 
 drawTopXProducts = function (dbConnection, topX) {
     if (is.numeric(topX)) {
