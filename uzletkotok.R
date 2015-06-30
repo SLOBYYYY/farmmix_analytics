@@ -1,6 +1,6 @@
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
 getUzletkotokSalesForAllProducts = function (dbConnection) {
-    uzletkotok.sales.all = dbGetQuery(dbConnection, paste("select uzletkoto.nev, sum(szamlatetel.eladar)",
+    uzletkotok.sales.all = dbGetQuery(dbConnection, paste("select uzletkoto.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
                                    "from szamlatetel join",  
                                    "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
                                    "uzletkoto on uzletkoto.id_uzletkoto = szamla.id_uzletkoto",
@@ -9,7 +9,7 @@ getUzletkotokSalesForAllProducts = function (dbConnection) {
 }
 
 getUzletkotokSalesForFarmmixProducts = function (dbConnection) {
-    uzletkotok.sales.farmmix = dbGetQuery(dbConnection, paste("select uzletkoto.nev, sum(szamlatetel.eladar)",
+    uzletkotok.sales.farmmix = dbGetQuery(dbConnection, paste("select uzletkoto.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
                                    "from szamlatetel join",  
                                    "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
                                    "uzletkoto on uzletkoto.id_uzletkoto = szamla.id_uzletkoto join",

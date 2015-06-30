@@ -1,13 +1,13 @@
 topXBestCustomerForAllProducts = function (dbConnection, topX) {
     if (is.numeric(topX)) {
         topXVevo = dbGetQuery(dbConnection,
-                                     paste("select first", topX, "vevo.nev, sum(szamlatetel.eladar) as \"EladarSum\"",
+                                     paste("select first", topX, "vevo.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
                                            "from szamlatetel join ", 
                                            "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
                                            "vevo on vevo.id_vevo = szamla.id_vevo",
                                            "group by vevo.nev",
                                            "order by \"EladarSum\" desc"))
-        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar) from szamlatetel")
+        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar * szamlatetel.mennyiseg) from szamlatetel")
         topXVevoSum = sum(topXVevo[,2], na.rm=T)
         print(paste("A top", topX, "vevő a bevétel", round(topXVevoSum / sumSoldTetel[1,1] * 100, 2), "%-át (", topXVevoSum, "Ft ) hozza"))
         print("Vevők: ")
@@ -28,7 +28,7 @@ topXBestCustomerForAllProducts = function (dbConnection, topX) {
 topXBestCustomerForFarmmixProducts = function (dbConnection, topX) {
     if (is.numeric(topX)) {
         topXVevo = dbGetQuery(dbConnection,
-                                     paste("select first", topX, "vevo.nev, sum(szamlatetel.eladar) as \"EladarSum\"",
+                                     paste("select first", topX, "vevo.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
                                            "from szamlatetel join ", 
                                            "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
                                            "vevo on vevo.id_vevo = szamla.id_vevo join",
@@ -37,7 +37,7 @@ topXBestCustomerForFarmmixProducts = function (dbConnection, topX) {
                                            "where forgalmazo.nev like '%FARMMIX%'",
                                            "group by vevo.nev",
                                            "order by \"EladarSum\" desc"))
-        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar) from szamlatetel")
+        sumSoldTetel = dbGetQuery(dbConnection, "select sum(szamlatetel.eladar * szamlatetel.mennyiseg) from szamlatetel")
         topXVevoSum = sum(topXVevo[,2], na.rm=T)
         print(paste("A top", topX, " Farmmixes terméket vásárló vevő a bevétel", round(topXVevoSum / sumSoldTetel[1,1] * 100, 2), "%-át (", topXVevoSum, "Ft ) hozza"))
         print("Vevők: ")
