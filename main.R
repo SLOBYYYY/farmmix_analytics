@@ -44,16 +44,36 @@ drawBarChart = function (data, xText, yText) {
                              ylab=yText, 
                              ylim=c(0,max(data[,2]) * 1.2),
                              col=colors)
-    text(data.barplot, data[,2], labels=data[,2], pos=3, cex=0.7)
+    text(data.barplot, data[,2], labels=ft.format(data[,2], rounding="million"), pos=3, cex=0.7)
     legend("topright", legend = data[,1], fill=colors, cex=0.7)
+}
+
+filterOnePercentRows = function (data) {
+    data.sum = sum(data[,2])
+    data$percent = round(data[,2] / data.sum * 100)
+    data.filtered = data[which(data$percent > 1),]
+    small.group.difference = data.sum - sum(data.filtered[,2])
+    small.group.percentage = round(small.group.difference / data.sum * 100)
+    additional.row = data.frame("1% alattiak", small.group.difference, small.group.percentage)
+    colnames(additional.row) = colnames(data)
+    data.filtered = rbind(data.filtered, additional.row)
+    return (data.filtered)
 }
 
 drawTermekCsoportPieForAllTermek = function (dbConnection) {
     # Side note: If I try to merge 2 tables, use "merge" instead of mergin it by hand..
     termekcsoport.freq = dbGetQuery(connection, "select csoport.nev, count(termek.id_termek) from termek join csoport on csoport.id_csoport = termek.id_csoport group by csoport.nev")
-    drawPieChart(termekcsoport.freq, "Termékcsoportok megoszlása a termékek között")
+    termekcsoport.filtered = filterOnePercentRows(termekcsoport.freq)
+    drawPieChart(termekcsoport.filtered, "Termékcsoportok megoszlása a termékek között")
 }
 
+ft.format = function (szam, rounding="none") {
+    switch(rounding,
+           none = paste(format(round(szam,0),big.mark=","),"Ft"),
+           thousand = paste(format(round(szam/1000,1),big.mark=","),"e Ft"),
+           million = paste(format(round(szam/1000000,2),big.mark=","),"M Ft")
+           )
+}
 
 drawTermekCsoportForSoldTermekek = function (dbConnection) {
     termekcsoport.freq = dbGetQuery(dbConnection, 
@@ -62,7 +82,9 @@ drawTermekCsoportForSoldTermekek = function (dbConnection) {
                "join termek on szamlatetel.id_termek = termek.id_termek ",
                "join csoport on csoport.id_csoport = termek.id_csoport",
                "group by csoport.nev"))
-    drawPieChart(termekcsoport.freq, "Termékcsoportok megoszlása az eladott termékek között")
+    termekcsoport.filtered = filterOnePercentRows(termekcsoport.freq)
+    drawPieChart(termekcsoport.filtered, "Termékcsoportok megoszlása az eladott termékek között")
+}
 }
 
 printYearlySales = function (dbConnection) {
