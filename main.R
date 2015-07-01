@@ -85,17 +85,29 @@ drawTermekCsoportForSoldTermekek = function (dbConnection) {
     termekcsoport.filtered = filterOnePercentRows(termekcsoport.freq)
     drawPieChart(termekcsoport.filtered, "Termékcsoportok megoszlása az eladott termékek között")
 }
+
+printYearlySales = function (dbConnection, year, to="end") {
+    command = paste("select sum(eladar * mennyiseg) ",
+                                    "from szamlatetel join",
+                                    "szamla on szamla.id_szamla = szamlatetel.id_szamla",
+                                    "where extract(year from szamla.datum) = ", year)
+    if (to == "today") {
+        command = paste(command, " and szamla.datum <= '", year, "-", format(Sys.Date(), "%m-%d"), "'", sep = "")
+    }
+    yearly.sales = dbGetQuery(dbConnection, command)
+    text = paste("Teljes éves bevétel (", year, "):")
+    if (to == "today") {
+        text = paste("Teljes éves bevétel (", year, "-", format(Sys.Date(), "%m-%d"), "-ig)", sep = "")
+    }
+    print(paste(text, ft.format(yearly.sales)))
 }
 
-printYearlySales = function (dbConnection) {
-    yearly.sales = dbGetQuery(dbConnection,
-                              "select sum(eladar) from szamlatetel")
-    print(paste("Teljes éves bevétel:", format(round(yearly.sales,0),big.mark=","),"Ft"))
+plotYearlySales = function (dbConnection, year, time_divide="weeks") {
     sales.by.date = dbGetQuery(dbConnection,
-               paste("select datum, sum(eladar) ",
+               paste("select datum, sum(eladar * mennyiseg) ",
                      "from SZAMLATETEL join", 
                      "SZAMLA on SZAMLA.ID_SZAMLA = SZAMLATETEL.ID_SZAMLA",
-                     "where extract(year from datum) =", the_year,
+                     "where extract(year from datum) =", year,
                      "group by datum order by datum")
                )
     names(sales.by.date) = c("datum","sum")
@@ -103,18 +115,19 @@ printYearlySales = function (dbConnection) {
     require(ggplot2)
     require(scales)
 
-    sales.by.date$weekday =  weekdays(as.Date(sales.by.date$datum, '%Y-%m-%d'), T)
-    par(mfrow=c(1,2))
-    
+    # Default week format
+    label.format = "%m-%d"
+    if (time_divide == "month") {
+        label.format = '%b'
+    }
     ggplot(data = sales.by.date, aes(datum, sum)) + 
         geom_line() +
+        stat_smooth(method="loess") +
         ylab("Eladás (Millió Ft)") +
         xlab("Dátum") +
         scale_y_continuous(labels=function (x) { paste(round(x/1000000,1), " Millió Ft")}) +
-        scale_x_date(breaks=date_breaks("weeks"))
+        scale_x_date(breaks=date_breaks(time_divide), labels=date_format(label.format))
 }
-printYearlySales(connection)
-
 
 printYearlyReturns = function (dbConnection) {
     yearly.returns = dbGetQuery(dbConnection,
@@ -125,4 +138,19 @@ printYearlyReturns = function (dbConnection) {
 drawTermekCsoportPieForAllTermek(connection)
 drawTermekCsoportForSoldTermekek(connection)
 
+printYearlySales(connection_2012, 2012)
+printYearlySales(connection_2012, 2012, "today")
+plotYearlySales(connection_2012, 2012, "month")
+printYearlySales(connection_2013, 2013)
+printYearlySales(connection_2013, 2013, "today")
+plotYearlySales(connection_2013, 2013, "month")
+printYearlySales(connection_2014, 2014)
+printYearlySales(connection_2014, 2014, "today")
+plotYearlySales(connection_2014, 2014, "month")
+printYearlySales(connection, the_year)
+printYearlySales(connection, the_year, "today")
+plotYearlySales(connection, the_year, "month")
+printYearlyReturns(connection_2012)
+printYearlyReturns(connection_2013)
+printYearlyReturns(connection_2014)
 printYearlyReturns(connection)
