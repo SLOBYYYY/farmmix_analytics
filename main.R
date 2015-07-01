@@ -1,14 +1,23 @@
 #install.packages("RJDBC", dependencies=T)
 library("RJDBC")
 dbPassword = "zOMOEd5f"
+library('ggplot2')
 the_year=2015
-dbName = "dbs_bosz_2015.fdb"
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
            "./jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
 connection = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", dbName, sep=""),
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2015.fdb", sep=""),
+                       "SYSDBA", dbPassword)
+connection_2014 = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2014.fdb", sep=""),
+                       "SYSDBA", dbPassword)
+connection_2013 = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2013.fdb", sep=""),
+                       "SYSDBA", dbPassword)
+connection_2012 = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2012.fdb", sep=""),
                        "SYSDBA", dbPassword)
 
 library(plyr)
