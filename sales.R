@@ -144,6 +144,69 @@ worstXFarmmixProducts = function (dbConnection, topX) {
     }
 }
 
+plotFarmmixProductsRatioForYears = function (connections, timeDivision="year") {
+    if(is.list(connections)) {
+        products = data.frame(date=numeric(),
+                              type=character(),
+                              value=numeric(),
+                              row.names = NULL,
+                              stringsAsFactors = F)
+        baseCommand = paste("sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
+                       "from szamlatetel join ", 
+                       "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
+                       "termek on termek.id_termek = szamlatetel.id_termek join",
+                       "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo",
+                       "where szamlatetel.mennyiseg >=0")
+        if (timeDivision == "year") {
+            baseCommand = paste("select extract(year from szamla.datum) as \"Datum\",", baseCommand)
+        } else {
+            baseCommand = paste("select extract(year from szamla.datum) || '-' || extract(month from szamla.datum) || '-01' as \"Datum\",", baseCommand)
+        }
+        for(connection in connections) {
+            fmxProducts = dbGetQuery(connection$Connection,
+                                 paste(baseCommand,
+                                       "and extract(year from szamla.datum) = ", connection$Year,
+                                       "and forgalmazo.nev like '%FARMMIX%'",
+                                       "group by \"Datum\"")
+            )
+            nonFmxProducts = dbGetQuery(connection$Connection,
+                                 paste(baseCommand,
+                                       "and extract(year from szamla.datum) = ", connection$Year,
+                                       "and forgalmazo.nev not like '%FARMMIX%'",
+                                       "group by \"Datum\"")
+            )
+            fmxRowCount = nrow(fmxProducts)
+            nonFmxRowCount = nrow(nonFmxProducts)
+            products = rbind(products,
+                             data.frame(date=fmxProducts[,1],
+                                        type="Fmx",
+                                        value=fmxProducts[,2],
+                                        row.names = NULL,
+                                        stringsAsFactors = F)
+                             )
+            products = rbind(products,
+                             data.frame(date=nonFmxProducts[,1],
+                                        type="Non-Fmx",
+                                        value=nonFmxProducts[,2],
+                                        row.names=NULL,
+                                        stringsAsFactors = F)
+                             )
+        }
+        if (timeDivision == "month") {
+            products$date = as.Date(products$date)
+        } 
+        products$type = as.factor(products$type)
+        print("Plotting...")
+        # Fontos, hogy geom_area esetén ne legyen túl sűrű az X tengely (year).
+        # Ha napira kérdeztem le, akkor nagyon szőrös lett az egész
+        # Másik ami fontos, hogy ha tételesen kérdeztem le (nem group by-jal) akkor
+        # szarul jelenítette meg. Nem volt kitöltött terület, csak vonalak
+        ggplot(products, aes(x=date, y=value, fill=type, colour=type)) + geom_area(position="stack")
+    }
+}
+plotFarmmixProductsRatioForYears(connections, 'month')
+
+
 drawTopXProducts(connection, 10)
 drawTopXFarmmixProducts(connection, 10)
 topXIsWhatPercentOfAllProducts(connection, 5)
