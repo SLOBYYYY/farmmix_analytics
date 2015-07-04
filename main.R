@@ -1,8 +1,16 @@
 #install.packages("RJDBC", dependencies=T)
-library("RJDBC")
-dbPassword = "zOMOEd5f"
+library('RJDBC')
 library('ggplot2')
+library('plyr')
+dbPassword = "PcL233yW"
 the_year=2015
+
+fmxYear = function (connection, year) {
+    object = list(Connection = connection, 
+                  Year = year)
+    class(object) = "fmxYear"
+    return(object)
+}
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
            "./jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
@@ -19,8 +27,10 @@ connection_2013 = dbConnect(drv,
 connection_2012 = dbConnect(drv, 
                        paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2012.fdb", sep=""),
                        "SYSDBA", dbPassword)
-
-library(plyr)
+connections = list(fmxYear(connection_2012, 2012),
+                fmxYear(connection_2013, 2013),
+                fmxYear(connection_2014, 2014),
+                fmxYear(connection, 2015))
 
 drawPieChart = function (data, text) {
     # data's first 2 columns should be labels and values
@@ -58,13 +68,6 @@ filterOnePercentRows = function (data) {
     colnames(additional.row) = colnames(data)
     data.filtered = rbind(data.filtered, additional.row)
     return (data.filtered)
-}
-
-drawTermekCsoportPieForAllTermek = function (dbConnection) {
-    # Side note: If I try to merge 2 tables, use "merge" instead of mergin it by hand..
-    termekcsoport.freq = dbGetQuery(connection, "select csoport.nev, count(termek.id_termek) from termek join csoport on csoport.id_csoport = termek.id_csoport group by csoport.nev")
-    termekcsoport.filtered = filterOnePercentRows(termekcsoport.freq)
-    drawPieChart(termekcsoport.filtered, "Termékcsoportok megoszlása a termékek között")
 }
 
 ft.format = function (szam, rounding="none") {
@@ -135,7 +138,45 @@ printYearlyReturns = function (dbConnection) {
     print(paste("Visszáruk száma:", yearly.returns))
 }
 
-drawTermekCsoportPieForAllTermek(connection)
+drawAreaPlot = function (connections) {
+    if(is.list(connections)) {
+        year.groups = data.frame(year=as.numeric(), label=as.character(), value=as.numeric(), row.names = NULL)
+        for(connection in connections) {
+            groups = dbGetQuery(connection$Connection,
+                       #paste("select csoport.nev, count(szamlatetel.id_termek) ",
+                       paste("select csoport.nev, szamlatetel.id_termek",
+                       "from szamlatetel ",
+                       "join termek on szamlatetel.id_termek = termek.id_termek ",
+                       "join csoport on csoport.id_csoport = termek.id_csoport")
+                       #"join csoport on csoport.id_csoport = termek.id_csoport",
+                       #"group by csoport.nev")
+            )
+            year = rep(connection$Year, nrow(groups))
+            year.groups = rbind(year.groups, 
+                                data.frame(year=year,
+                                           label=groups$NEV,
+                                           #value=groups$COUNT, row.names=NULL)
+                                           value=groups$ID_TERMEK, row.names=NULL)
+                                )
+        }
+        ggplot(year.groups, aes(factor(year), fill=label)) +
+            geom_bar()
+    } else if(class(connections) == "fmxYear") {
+            groups = dbGetQuery(connections$Connection,
+                       #paste("select csoport.nev, count(szamlatetel.id_termek) ",
+                       paste("select csoport.nev, szamlatetel.id_termek",
+                       "from szamlatetel ",
+                       "join termek on szamlatetel.id_termek = termek.id_termek ",
+                       "join csoport on csoport.id_csoport = termek.id_csoport")
+                       #"join csoport on csoport.id_csoport = termek.id_csoport",
+                       #"group by csoport.nev")
+            )
+            ggplot(groups, aes(factor(connections$Year), fill=label)) +
+                geom_bar()
+    }
+}
+drawAreaPlot(connections)
+
 drawTermekCsoportForSoldTermekek(connection)
 
 printYearlySales(connection_2012, 2012)
