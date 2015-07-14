@@ -14,7 +14,7 @@ topXBestCustomerForAllProducts = function (dbConnection, topX) {
         for (i in 1:topX) {
             print(paste(topXVevo[i,1], 
                         " (", 
-                        topXVevo[i,2],
+                        ft.format(topXVevo[i,2]),
                         " - ",
                         round(topXVevo[i,2] / sumSoldTetel[1,1] * 100, 2),
                         "%)",
@@ -44,7 +44,7 @@ topXBestCustomerForFarmmixProducts = function (dbConnection, topX) {
         for (i in 1:topX) {
             print(paste(topXVevo[i,1],
                         " (",
-                        topXVevo[i,2],
+                        ft.format(topXVevo[i,2]),
                         " - ",
                         round(topXVevo[i,2] / sumSoldTetel[1,1] * 100, 2),
                         "%)",
