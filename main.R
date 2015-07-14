@@ -2,6 +2,8 @@
 library('RJDBC')
 library('ggplot2')
 library('plyr')
+library('scales')
+library('forecast')
 dbPassword = "PcL233yW"
 the_year=2015
 
@@ -24,10 +26,10 @@ connection_2014 = dbConnect(drv,
 connection_2013 = dbConnect(drv, 
                        paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2013.fdb", sep=""),
                        "SYSDBA", dbPassword)
-connection_2012 = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2012.fdb", sep=""),
+connection_2010_2012 = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2010-2012.fdb", sep=""),
                        "SYSDBA", dbPassword)
-connections = list(fmxYear(connection_2012, 2012),
+connections = list(fmxYear(connection_2010_2012, 2010),
                 fmxYear(connection_2013, 2013),
                 fmxYear(connection_2014, 2014),
                 fmxYear(connection, 2015))
