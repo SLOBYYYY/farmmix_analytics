@@ -35,10 +35,21 @@ connections = list(fmxYear(connection_2010_2012, 2010),
                 fmxYear(connection, 2015))
 
 source('helper.R')
+source('sales.R')
 
-drawAreaPlot(connections)
 
+
+
+
+# Sales stuff
+###############
 drawTermekCsoportForSoldTermekek(connection)
+drawTopXProducts(connection, 10)
+drawTopXFarmmixProducts(connection, 10)
+topXIsWhatPercentOfAllProducts(connection, 5)
+topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
+worstXProducts(connection, 20)
+worstXFarmmixProducts(connection, 20)
 
 printYearlySales(connection_2012, 2012)
 printYearlySales(connection_2012, 2012, "today")
@@ -56,3 +67,7 @@ printYearlyReturns(connection_2012)
 printYearlyReturns(connection_2013)
 printYearlyReturns(connection_2014)
 printYearlyReturns(connection)
+
+plotFarmmixProductsRatioForYears(connections, 'year')
+plotFarmmixProductsRatioForYears(connections, 'month')
+drawAreaPlot(connections) # not good yet

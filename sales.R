@@ -330,11 +330,3 @@ drawAreaPlot = function (connections) {
     } 
 }
 
-drawTopXProducts(connection, 10)
-drawTopXFarmmixProducts(connection, 10)
-topXIsWhatPercentOfAllProducts(connection, 5)
-topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
-worstXProducts(connection, 20)
-worstXFarmmixProducts(connection, 20)
-plotFarmmixProductsRatioForYears(connections, 'year')
-plotFarmmixProductsRatioForYears(connections, 'month')
