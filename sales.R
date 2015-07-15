@@ -193,20 +193,58 @@ plotFarmmixProductsRatioForYears = function (connections, timeDivision="year") {
                                         row.names=NULL,
                                         stringsAsFactors = F)
                              )
+            
+            if (timeDivision == "month") {
+                fmxProducts$date = as.Date(fmxProducts$date)
+                fmxProducts = arrange(fmxProducts, date)
+                writeLines(paste("Hónap: ",
+                                 format(fmxProducts$date, "%y-%m"),
+                                 " | Fmx eladások: ",
+                                 ft.format(fmxProducts[,2], rounding="million"),
+                                 " | Nem-Fmx eladások: ",
+                                 ft.format(nonFmxProducts[,2], rounding="million"),
+                                 " | Arány(Fmx/Nem-Fmx): ",
+                                 round(fmxProducts$value / nonFmxProducts$value * 100),
+                                 "% | Arány(Fmx/Összes): ",
+                                 round(fmxProducts$value / (nonFmxProducts$value + fmxProducts$value) * 100), 
+                                 "%"
+                                 , sep=""))
+            } else {
+                writeLines(paste("Év: ",
+                                 fmxProducts$date,
+                                 " | Fmx eladások: ",
+                                 ft.format(fmxProducts[,2], rounding="million"),
+                                 " | Nem-Fmx eladások: ",
+                                 ft.format(nonFmxProducts[,2], rounding="million"),
+                                 " | Arány(Fmx/Nem-Fmx): ",
+                                 round(fmxProducts$value / nonFmxProducts$value * 100),
+                                 "% | Arány(Fmx/Összes): ",
+                                 round(fmxProducts$value / (nonFmxProducts$value + fmxProducts$value) * 100), 
+                                 '%'
+                                 , sep=""))
+            }
         }
+        
+        products$type = as.factor(products$type)
+        products = arrange(products, date)
         if (timeDivision == "month") {
             products$date = as.Date(products$date)
-        } 
-        products$type = as.factor(products$type)
-        print("Plotting...")
+        }
         # Fontos, hogy geom_area esetén ne legyen túl sűrű az X tengely (year).
         # Ha napira kérdeztem le, akkor nagyon szőrös lett az egész
         # Másik ami fontos, hogy ha tételesen kérdeztem le (nem group by-jal) akkor
         # szarul jelenítette meg. Nem volt kitöltött terület, csak vonalak
-        ggplot(products, aes(x=date, y=value, fill=type, colour=type)) + geom_area(position="stack")
+        plot = ggplot(products, aes(x=date, y=value, fill=type, colour=type)) +
+            geom_area(position="stack") +
+            ylab("Eladás (Millió Ft)") +
+            xlab("Dátum") +
+            scale_y_continuous(labels=plotYCont)
+        if (timeDivision == "month") {
+            plot = plot + scale_x_date(labels=date_format("%y-%m"))
+        }
+        plot(plot)
     }
 }
-plotFarmmixProductsRatioForYears(connections, 'month')
 
 
 drawTopXProducts(connection, 10)
