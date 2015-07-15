@@ -246,6 +246,89 @@ plotFarmmixProductsRatioForYears = function (connections, timeDivision="year") {
     }
 }
 
+drawTermekCsoportForSoldTermekek = function (dbConnection) {
+    termekcsoport.freq = dbGetQuery(dbConnection, 
+               paste("select csoport.nev, count(szamlatetel.id_termek) ",
+               "from szamlatetel ",
+               "join termek on szamlatetel.id_termek = termek.id_termek ",
+               "join csoport on csoport.id_csoport = termek.id_csoport",
+               "group by csoport.nev"))
+    termekcsoport.filtered = filterOnePercentRows(termekcsoport.freq)
+    drawPieChart(termekcsoport.filtered, "Termékcsoportok megoszlása az eladott termékek között")
+}
+
+plotYearlySales = function (dbConnection, year, time_divide="weeks") {
+    sales.by.date = dbGetQuery(dbConnection,
+               paste("select datum, sum(eladar * mennyiseg) ",
+                     "from SZAMLATETEL join", 
+                     "SZAMLA on SZAMLA.ID_SZAMLA = SZAMLATETEL.ID_SZAMLA",
+                     "where extract(year from datum) =", year,
+                     "group by datum order by datum")
+               )
+    names(sales.by.date) = c("datum","sum")
+    sales.by.date$datum = as.Date(sales.by.date$datum, '%Y-%m-%d')
+
+    # Default week format
+    label.format = "%m-%d"
+    if (time_divide == "month") {
+        label.format = '%b'
+    }
+    ggplot(data = sales.by.date, aes(datum, sum)) + 
+        geom_line() +
+        stat_smooth(method="loess") +
+        ylab("Eladás (Millió Ft)") +
+        xlab("Dátum") +
+        scale_y_continuous(labels=plotYCont) +
+        scale_x_date(breaks=date_breaks(time_divide), labels=date_format(label.format))
+}
+
+printYearlySales = function (dbConnection, year, to="end") {
+    command = paste("select sum(eladar * mennyiseg) ",
+                                    "from szamlatetel join",
+                                    "szamla on szamla.id_szamla = szamlatetel.id_szamla",
+                                    "where extract(year from szamla.datum) = ", year)
+    if (to == "today") {
+        command = paste(command, " and szamla.datum <= '", year, "-", format(Sys.Date(), "%m-%d"), "'", sep = "")
+    }
+    yearly.sales = dbGetQuery(dbConnection, command)
+    text = paste("Teljes éves bevétel (", year, "):")
+    if (to == "today") {
+        text = paste("Teljes éves bevétel (", year, "-", format(Sys.Date(), "%m-%d"), "-ig)", sep = "")
+    }
+    print(paste(text, ft.format(yearly.sales)))
+}
+
+printYearlyReturns = function (dbConnection) {
+    yearly.returns = dbGetQuery(dbConnection,
+                              "select count(id_visszaaru) from visszaaru")
+    print(paste("Visszáruk száma:", yearly.returns))
+}
+
+drawAreaPlot = function (connections) {
+    if(is.list(connections)) {
+        year.groups = data.frame(year=as.numeric(), label=as.character(), value=as.numeric(), row.names = NULL)
+        for(connection in connections) {
+            groups = dbGetQuery(connection$Connection,
+                       #paste("select csoport.nev, count(szamlatetel.id_termek) ",
+                       paste("select csoport.nev, szamlatetel.id_termek",
+                       "from szamlatetel ",
+                       "join termek on szamlatetel.id_termek = termek.id_termek ",
+                       "join csoport on csoport.id_csoport = termek.id_csoport")
+                       #"join csoport on csoport.id_csoport = termek.id_csoport",
+                       #"group by csoport.nev")
+            )
+            year = rep(connection$Year, nrow(groups))
+            year.groups = rbind(year.groups, 
+                                data.frame(year=year,
+                                           label=groups$NEV,
+                                           #value=groups$COUNT, row.names=NULL)
+                                           value=groups$ID_TERMEK, row.names=NULL)
+                                )
+        }
+        ggplot(year.groups, aes(factor(year), fill=label)) +
+            geom_bar()
+    } 
+}
 
 drawTopXProducts(connection, 10)
 drawTopXFarmmixProducts(connection, 10)
