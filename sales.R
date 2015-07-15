@@ -165,16 +165,18 @@ plotFarmmixProductsRatioForYears = function (connections, timeDivision="year") {
         for(connection in connections) {
             fmxProducts = dbGetQuery(connection$Connection,
                                  paste(baseCommand,
-                                       "and extract(year from szamla.datum) = ", connection$Year,
                                        "and forgalmazo.nev like '%FARMMIX%'",
-                                       "group by \"Datum\"")
+                                       "group by \"Datum\"",
+                                       "order by \"Datum\"")
             )
+            names(fmxProducts) = c("date", "value")
             nonFmxProducts = dbGetQuery(connection$Connection,
                                  paste(baseCommand,
-                                       "and extract(year from szamla.datum) = ", connection$Year,
                                        "and forgalmazo.nev not like '%FARMMIX%'",
-                                       "group by \"Datum\"")
+                                       "group by \"Datum\"",
+                                       "order by \"Datum\"")
             )
+            names(nonFmxProducts) = c("date", "value")
             fmxRowCount = nrow(fmxProducts)
             nonFmxRowCount = nrow(nonFmxProducts)
             products = rbind(products,
@@ -213,3 +215,5 @@ topXIsWhatPercentOfAllProducts(connection, 5)
 topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
 worstXProducts(connection, 20)
 worstXFarmmixProducts(connection, 20)
+plotFarmmixProductsRatioForYears(connections, 'year')
+plotFarmmixProductsRatioForYears(connections, 'month')
