@@ -19,22 +19,22 @@ getUzletkotokSalesForFarmmixProducts = function (dbConnection) {
     return (uzletkotok.sales.farmmix)
 }
 
-drawPieChartForUzletkotokBySales = function (dbConnection) {
+plotPieChartForUzletkotokBySales = function (dbConnection) {
     uzletkotok.sales.all = getUzletkotokSalesForAllProducts(dbConnection)
-    drawPieChart(uzletkotok.sales.all, "Üzletkötők eladási adatai")
+    plotPieChart(uzletkotok.sales.all, "Üzletkötők eladási adatai")
 }
 
-drawPieChartForUzletkotokByFarmmixSales = function (dbConnection) {
+plotPieChartForUzletkotokByFarmmixSales = function (dbConnection) {
     uzletkotok.sales.farmmix = getUzletkotokSalesForFarmmixProducts(dbConnection)
-    drawPieChart(uzletkotok.sales.farmmix, "Üzletkötők Farmmixes eladási adatai")
+    plotPieChart(uzletkotok.sales.farmmix, "Üzletkötők Farmmixes eladási adatai")
 }
 
-drawBarChartForUzletkotokByAllSales = function (dbConnection) {
+plotBarChartForUzletkotokByAllSales = function (dbConnection) {
     uzletkotok.sales.all = getUzletkotokSalesForAllProducts(dbConnection)
-    drawBarChart(uzletkotok.sales.all, "Üzletkötők eladási adatai", "Forint")
+    plotBarChart(uzletkotok.sales.all, "Üzletkötők eladási adatai", "Forint")
 }
 
-drawBarChartForUzletkotokByFarmmixSales = function (dbConnection) {
+plotBarChartForUzletkotokByFarmmixSales = function (dbConnection) {
     uzletkotok.sales.all = getUzletkotokSalesForFarmmixProducts(dbConnection)
-    drawBarChart(uzletkotok.sales.all, "Üzletkötők Farmmixes eladási adatai", "Forint")
+    plotBarChart(uzletkotok.sales.all, "Üzletkötők Farmmixes eladási adatai", "Forint")
 }

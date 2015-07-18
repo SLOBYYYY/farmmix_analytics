@@ -2,7 +2,7 @@ plotYCont = function (x) {
     paste(round(x/1000000,1), " Millió Ft")
 }
 
-drawPieChart = function (data, text) {
+plotPieChart = function (data, text) {
     # data's first 2 columns should be labels and values
     labels = data[,1]
     slices = data[,2]
@@ -14,7 +14,7 @@ drawPieChart = function (data, text) {
         main=text)
 }
 
-drawBarChart = function (data, xText, yText) {
+plotBarChart = function (data, xText, yText) {
     data.length = dim(data)[1]
     colors = rainbow(data.length)
     data = arrange(data, -data[,2])

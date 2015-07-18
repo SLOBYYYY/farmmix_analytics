@@ -44,24 +44,30 @@ source('forecast.R')
 
 # Agents
 ############
-drawPieChartForUzletkotokBySales(connection)
-drawPieChartForUzletkotokByFarmmixSales(connection)
-drawBarChartForUzletkotokByAllSales(connection)
-drawBarChartForUzletkotokByFarmmixSales(connection)
+#plotPieChartForUzletkotokBySales(connection)
+#plotPieChartForUzletkotokByFarmmixSales(connection)
+plotBarChartForUzletkotokByAllSales(connection)
+plotBarChartForUzletkotokByFarmmixSales(connection)
 
 # Sales 
 ###############
-drawTermekCsoportForSoldTermekek(connection)
-drawTopXProducts(connection, 10)
-drawTopXFarmmixProducts(connection, 10)
+plotTermekCsoportForSoldTermekek(connection)
+plotTopXProducts(connection, 10)
+plotTopXFarmmixProducts(connection, 10)
 topXIsWhatPercentOfAllProducts(connection, 5)
 topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
 worstXProducts(connection, 20)
 worstXFarmmixProducts(connection, 20)
 
-printYearlySales(connection_2012, 2012)
-printYearlySales(connection_2012, 2012, "today")
-plotYearlySales(connection_2012, 2012, "month")
+printYearlySales(connection_2010_2012, 2010)
+printYearlySales(connection_2010_2012, 2010, "today")
+plotYearlySales(connection_2010_2012, 2010, "month")
+printYearlySales(connection_2010_2012, 2011)
+printYearlySales(connection_2010_2012, 2011, "today")
+plotYearlySales(connection_2010_2012, 2011, "month")
+printYearlySales(connection_2010_2012, 2012)
+printYearlySales(connection_2010_2012, 2012, "today")
+plotYearlySales(connection_2010_2012, 2012, "month")
 printYearlySales(connection_2013, 2013)
 printYearlySales(connection_2013, 2013, "today")
 plotYearlySales(connection_2013, 2013, "month")
@@ -71,14 +77,14 @@ plotYearlySales(connection_2014, 2014, "month")
 printYearlySales(connection, the_year)
 printYearlySales(connection, the_year, "today")
 plotYearlySales(connection, the_year, "month")
-printYearlyReturns(connection_2012)
+printYearlyReturns(connection_2010_2012)
 printYearlyReturns(connection_2013)
 printYearlyReturns(connection_2014)
 printYearlyReturns(connection)
 
 plotFarmmixProductsRatioForYears(connections, 'year')
 plotFarmmixProductsRatioForYears(connections, 'month')
-drawAreaPlot(connections) # not good yet
+#plotAreaPlot(connections) # not good yet
 
 
 # Customers
@@ -86,9 +92,10 @@ drawAreaPlot(connections) # not good yet
 topXBestCustomerForAllProducts(connection, 10)
 topXBestCustomerForFarmmixProducts(connection, 10)
 topXRecurringCustomers(connection, 10)
-topXLatePayers(connection, 10)
+#topXLatePayers(connection, 10) # not good
 
 
 # Forecast
 ##############
 fit = forecastSales(connections)
+plot(fit)

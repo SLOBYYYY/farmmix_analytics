@@ -1,27 +1,32 @@
-drawTopXProducts = function (dbConnection, topX) {
+plotTopXProducts = function (dbConnection, topX) {
     if (is.numeric(topX)) {
         topXSoldTetel = dbGetQuery(dbConnection,
                                      paste("select first", topX, "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
                                            "from szamlatetel join termek on termek.id_termek = szamlatetel.id_termek",
                                            "group by termek.nev",
                                            "order by \"EladarSum\" desc"))
-        #topXSoldTetel = rename(topXSoldTetel, c('ID_TERMEK'='Id', 'ELADAR'='Eladar.sum'))
-        colors = terrain.colors(topX)
-        soldTetel.barplot = barplot(topXSoldTetel[,2], 
-                                 #names.arg=topXSoldTetel[,'NEV'], 
-                                 cex.names=0.6, 
-                                 xlab="Top eladott összes termék",
-                                 ylab="Eladott mennyiség (Ft)", 
-                                 ylim=c(0,max(topXSoldTetel[,2]) * 1.2),
-                                 col=colors)
-        text(soldTetel.barplot, topXSoldTetel[,2], labels=topXSoldTetel[,2], pos=3, cex=0.7)
-        legend("topright", legend = topXSoldTetel[,'NEV'], fill=colors, cex=0.7)
+        colnames(topXSoldTetel) = c('name', 'sale')
+        topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
+        
+        ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale), y=sale, fill=reorder(name,-sale), label=ft.format(sale, "million"))) + 
+            geom_bar(stat="identity") +
+            geom_text(size=4, vjust=-1) +
+            ylab("Eladott mennyiség (Millió Ft)") +
+            xlab("Top eladott termék") +
+            scale_y_continuous(labels=plotYCont) + 
+            theme(
+                axis.text.x=element_blank()
+            ) + 
+            guides(
+                fill=guide_legend(title="Termékek")
+            ) 
+        return(topXSoldTetel)
     } else {
         stop("The topX variable should be a number")
     }
 }
 
-drawTopXFarmmixProducts = function (dbConnection, topX) {
+plotTopXFarmmixProducts = function (dbConnection, topX) {
     if (is.numeric(topX)) {
         topXSoldTetel = dbGetQuery(dbConnection,
                                      paste("select first", topX, "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
@@ -31,17 +36,21 @@ drawTopXFarmmixProducts = function (dbConnection, topX) {
                                            "where forgalmazo.nev like '%FARMMIX%'",
                                            "group by termek.nev",
                                            "order by \"EladarSum\" desc"))
-        #topXSoldTetel = rename(topXSoldTetel, c('ID_TERMEK'='Id', 'ELADAR'='Eladar.sum'))
-        colors = terrain.colors(topX)
-        soldTetel.barplot = barplot(topXSoldTetel[,2], 
-                                 #names.arg=topXSoldTetel[,'NEV'], 
-                                 cex.names=0.6, 
-                                 xlab="Top eladott Farmmixes termékek",
-                                 ylab="Eladott mennyiség (Ft)", 
-                                 ylim=c(0,max(topXSoldTetel[,2]) * 1.2),
-                                 col=colors)
-        text(soldTetel.barplot, topXSoldTetel[,2], labels=topXSoldTetel[,2], pos=3, cex=0.7)
-        legend("topright", legend = topXSoldTetel[,'NEV'], fill=colors, cex=0.7)
+        colnames(topXSoldTetel) = c('name', 'sale')
+        topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
+        
+        ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale), y=sale, fill=reorder(name,-sale), label=ft.format(sale, "million"))) + 
+            geom_bar(stat="identity") +
+            geom_text(size=4, vjust=-1) +
+            ylab("Eladott mennyiség (Millió Ft)") +
+            xlab("Top eladott Farmmixes termék") +
+            scale_y_continuous(labels=plotYCont) + 
+            theme(
+                axis.text.x=element_blank()
+            ) + 
+            guides(
+                fill=guide_legend(title="Termékek")
+            ) 
     } else {
         stop("The topX variable should be a number")
     }
@@ -246,7 +255,7 @@ plotFarmmixProductsRatioForYears = function (connections, timeDivision="year") {
     }
 }
 
-drawTermekCsoportForSoldTermekek = function (dbConnection) {
+plotTermekCsoportForSoldTermekek = function (dbConnection) {
     termekcsoport.freq = dbGetQuery(dbConnection, 
                paste("select csoport.nev, count(szamlatetel.id_termek) ",
                "from szamlatetel ",
