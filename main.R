@@ -35,13 +35,21 @@ connections = list(fmxYear(connection_2010_2012, 2010),
                 fmxYear(connection, 2015))
 
 source('helper.R')
+source('agents.R')
 source('sales.R')
+source('customers.R')
+source('forecast.R')
 
 
 
+# Agents
+############
+drawPieChartForUzletkotokBySales(connection)
+drawPieChartForUzletkotokByFarmmixSales(connection)
+drawBarChartForUzletkotokByAllSales(connection)
+drawBarChartForUzletkotokByFarmmixSales(connection)
 
-
-# Sales stuff
+# Sales 
 ###############
 drawTermekCsoportForSoldTermekek(connection)
 drawTopXProducts(connection, 10)
@@ -71,3 +79,16 @@ printYearlyReturns(connection)
 plotFarmmixProductsRatioForYears(connections, 'year')
 plotFarmmixProductsRatioForYears(connections, 'month')
 drawAreaPlot(connections) # not good yet
+
+
+# Customers
+##############
+topXBestCustomerForAllProducts(connection, 10)
+topXBestCustomerForFarmmixProducts(connection, 10)
+topXRecurringCustomers(connection, 10)
+topXLatePayers(connection, 10)
+
+
+# Forecast
+##############
+fit = forecastSales(connections)

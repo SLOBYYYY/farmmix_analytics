@@ -88,8 +88,3 @@ topXLatePayers = function (dbConnection, topX) {
         stop("The topX variable should be a number")
     }
 }
-
-topXBestCustomerForAllProducts(connection, 10)
-topXBestCustomerForFarmmixProducts(connection, 10)
-topXRecurringCustomers(connection, 10)
-topXLatePayers(connection, 10)

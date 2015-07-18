@@ -329,4 +329,3 @@ drawAreaPlot = function (connections) {
             geom_bar()
     } 
 }
-

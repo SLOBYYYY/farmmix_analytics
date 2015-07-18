@@ -44,12 +44,11 @@ forecastSales = function (connections) {
         # mindegyik in és out-sample pontossága rosszabb volt (MAPE-t néztem))
         
         # Megnézzük, hogy milyen pontosan becsülte volna meg a múlt évet
-        plot(productsTs, ylab="Eladások", xlab="Idő (év)", title="Becslési modell vizsgálata")
+        plot(productsTs, ylab="Eladások", xlab="Idő (év)")
+        title("Becslési modell vizsgálata")
         lines(fit$mean, col="blue", lwd=3)
-        legend()
+        legend("topleft", col="blue", lwd=3, legend="Becsült")
         # Egész jól megbecsülné, jó lesz ez a modell ezzel a lambdával
         return(forecast(productsTs, h=12, lambda=lambda))
     }
 }
-fit = forecastSales(connections)
-

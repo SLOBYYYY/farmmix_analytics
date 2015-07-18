@@ -1,4 +1,3 @@
-# Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
 getUzletkotokSalesForAllProducts = function (dbConnection) {
     uzletkotok.sales.all = dbGetQuery(dbConnection, paste("select uzletkoto.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
                                    "from szamlatetel join",  
@@ -39,8 +38,3 @@ drawBarChartForUzletkotokByFarmmixSales = function (dbConnection) {
     uzletkotok.sales.all = getUzletkotokSalesForFarmmixProducts(dbConnection)
     drawBarChart(uzletkotok.sales.all, "Üzletkötők Farmmixes eladási adatai", "Forint")
 }
-
-drawPieChartForUzletkotokBySales(connection)
-drawPieChartForUzletkotokByFarmmixSales(connection)
-drawBarChartForUzletkotokByAllSales(connection)
-drawBarChartForUzletkotokByFarmmixSales(connection)
