@@ -338,3 +338,36 @@ drawAreaPlot = function (connections) {
             geom_bar()
     } 
 }
+
+plotProductSaleForLifetime = function (connections, product.name) {
+    if(is.list(connections)) {
+        product.sales = data.frame(month=as.character(), sale=as.numeric(), row.names = NULL)
+        for(connection in connections) {
+            command = paste("select extract(year from szamla.datum) || '-' || extract(month from szamla.datum) || '-01' as \"Datum\",",
+                                " sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
+                                " from szamlatetel join ", 
+                                " szamla on szamla.id_szamla = szamlatetel.id_szamla join",
+                                " termek on termek.id_termek = szamlatetel.id_termek",
+                                " where termek.nev like '", product.name, "'",
+                                " group by \"Datum\"",
+                                " order by \"Datum\"",
+                            sep="")
+            salesByMonth = dbGetQuery(connection$Connection, command)
+            product.sales = rbind(product.sales,
+                             data.frame(month=salesByMonth[,1],
+                                        sale=salesByMonth[,2],
+                                        row.names=NULL,
+                                        stringsAsFactors = F)
+                             )
+        }
+        product.sales$month = as.Date(product.sales$month)
+        product.sales = arrange(product.sales, month)
+        ggplot(data=product.sales, aes(x=month,y=sale)) +
+            geom_line() + 
+            ylab("Eladás (Millió Ft)") +
+            xlab("Dátum") +
+            scale_y_continuous(labels=plotYCont) +
+            scale_x_date(breaks=date_breaks("3 month"), labels=date_format("%Y-%m"))
+        #return(product.sales)
+    }
+}
