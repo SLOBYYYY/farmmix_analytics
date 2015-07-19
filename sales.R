@@ -339,30 +339,56 @@ drawAreaPlot = function (connections) {
     } 
 }
 
-plotProductSaleForLifetime = function (connections, product.name) {
-    if(is.list(connections)) {
-        product.sales = data.frame(month=as.character(), sale=as.numeric(), row.names = NULL)
+plotProductSaleForLifetime = function (connections, product.names) {
+    if(is.list(connections) && length(connections) > 0 && is.vector(product.names) && length(product.names) > 0) {
+        product.sales = data.frame(month=as.character(), product=as.character(), sale=as.numeric(), row.names = NULL)
+        # Flatten the names into a comma separated string for the command
+        product.names.flat = paste("'", product.names, "'", sep="", collapse=", ")
         for(connection in connections) {
             command = paste("select extract(year from szamla.datum) || '-' || extract(month from szamla.datum) || '-01' as \"Datum\",",
-                                " sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
-                                " from szamlatetel join ", 
-                                " szamla on szamla.id_szamla = szamlatetel.id_szamla join",
-                                " termek on termek.id_termek = szamlatetel.id_termek",
-                                " where termek.nev like '", product.name, "'",
-                                " group by \"Datum\"",
-                                " order by \"Datum\"",
+                            " termek.nev, ",
+                            " sum(szamlatetel.eladar * szamlatetel.mennyiseg)",
+                            " from szamlatetel join ", 
+                            " szamla on szamla.id_szamla = szamlatetel.id_szamla join",
+                            " termek on termek.id_termek = szamlatetel.id_termek",
+                            " where termek.nev in (", product.names.flat, ")",
+                            " group by \"Datum\", termek.nev",
+                            " order by \"Datum\"",
                             sep="")
             salesByMonth = dbGetQuery(connection$Connection, command)
             product.sales = rbind(product.sales,
                              data.frame(month=salesByMonth[,1],
-                                        sale=salesByMonth[,2],
+                                        product=salesByMonth[,2],
+                                        sale=salesByMonth[,3],
                                         row.names=NULL,
                                         stringsAsFactors = F)
                              )
         }
         product.sales$month = as.Date(product.sales$month)
+        product.sales$product = factor(product.sales$product)
+        months = unique(product.sales$month)
+        # Impute missing values with 0-s
+        #month.occurrances = table(product.sales$month)
+        #product.occurrances = table(product.sales$product)
+        for (product in seq(along=product.names)) {
+            for (month in 1:length(months)) {
+                if (nrow(product.sales[product.sales$month == months[month] &
+                    product.sales$product == product.names[product],]) == 0) {
+                    product.sales = rbind(product.sales,
+                                          data.frame(
+                                                month=months[month],
+                                                product=product.names[product],
+                                                sale=0,
+                                                row.names=NULL,
+                                                stringsAsFactors = F)     
+                                          )
+                }
+            }
+        }
+        
         product.sales = arrange(product.sales, month)
-        ggplot(data=product.sales, aes(x=month,y=sale)) +
+        
+        ggplot(data=product.sales, aes(x=month,y=sale, fill=product, color=product)) +
             geom_line() + 
             ylab("Eladás (Millió Ft)") +
             xlab("Dátum") +
