@@ -1,32 +1,71 @@
-plotTopXProducts = function (dbConnection, topX) {
+plotTopXProducts = function (dbConnection, topX=NULL, provider=NULL, product.group=NULL, plot=F) {
     if (is.numeric(topX)) {
-        topXSoldTetel = dbGetQuery(dbConnection,
-                                     paste("select first", topX, "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
-                                           "from szamlatetel join termek on termek.id_termek = szamlatetel.id_termek",
-                                           "group by termek.nev",
-                                           "order by \"EladarSum\" desc"))
+        topXCommand = ""
+        providerCommand = ""
+        productGroupCommand = ""
+        if (!is.null(topX)) {
+            topXCommand = paste("first", topX)
+        }
+        if (!is.null(provider)) {
+            switch(provider,
+                   farmmix = { providerCommand = "and forgalmazo.nev like 'FARMMIX KFT'" },
+                   alternativ = { providerCommand = "and forgalmazo.nev like 'FARMMIX KFT ALTERNAT%'" },
+                   notfarmmix = { providerCommand = "and forgalmazo.nev not like '%FARMMIX%'" }
+            )
+        }
+        if (!is.null(product.group)) {
+            switch(product.group,
+                   vetomag = { productGroupCommand = "and csoport.nev like 'VET_MAG'" },
+                   novenyvedoszer = { productGroupCommand = "and csoport.nev like 'N_V_NYV_D%'" },
+                   mutragya = { productGroupCommand = "and csoport.nev like 'M_TR_GYA'" }
+            )
+        }
+        command = paste("select", 
+                        topXCommand,
+                        "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
+                        "from szamlatetel join",
+                        "termek on termek.id_termek = szamlatetel.id_termek join",
+                        "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join",
+                        "csoport on csoport.id_csoport = termek.id_csoport",
+                        "where 1=1",
+                        providerCommand,
+                        productGroupCommand,
+                        "group by termek.nev",
+                        "order by \"EladarSum\" desc"
+                        )
+        topXSoldTetel = dbGetQuery(dbConnection, command)
+                                     
         colnames(topXSoldTetel) = c('name', 'sale')
         topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
         
-        ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale), y=sale, fill=reorder(name,-sale), label=ft.format(sale, "million"))) + 
-            geom_bar(stat="identity") +
-            geom_text(size=4, vjust=-1) +
-            ylab("Eladott mennyiség (Millió Ft)") +
-            xlab("Top eladott termék") +
-            scale_y_continuous(labels=plotYCont) + 
-            theme(
-                axis.text.x=element_blank()
-            ) + 
-            guides(
-                fill=guide_legend(title="Termékek")
-            ) 
-        return(topXSoldTetel)
+        if (plot) {
+            ggplot(data = topXSoldTetel,
+                   aes(x=reorder(name,-sale),
+                       y=sale,
+                       fill=reorder(name,-sale),
+                       label=ft.format(sale, "million"))) + 
+                geom_bar(stat="identity") +
+                geom_text(size=4, vjust=-1) +
+                ylab("Eladott mennyiség (Millió Ft)") +
+                xlab("Top eladott termék") +
+                scale_y_continuous(labels=plotYCont) + 
+                theme(
+                    axis.text.x=element_blank()
+                ) + 
+                guides(
+                    fill=guide_legend(title="Termékek")
+                ) 
+        } else {
+            return(topXSoldTetel)
+        }
     } else {
         stop("The topX variable should be a number")
     }
 }
+#plotTopXProducts(connection, 10, provider="farmmix", product.group="novenyvedoszer", plot=F)
+    
 
-plotTopXFarmmixProducts = function (dbConnection, topX) {
+plotTopXFarmmixProducts = function (dbConnection, topX, plot=F) {
     if (is.numeric(topX)) {
         topXSoldTetel = dbGetQuery(dbConnection,
                                      paste("select first", topX, "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
@@ -39,18 +78,25 @@ plotTopXFarmmixProducts = function (dbConnection, topX) {
         colnames(topXSoldTetel) = c('name', 'sale')
         topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
         
-        ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale), y=sale, fill=reorder(name,-sale), label=ft.format(sale, "million"))) + 
-            geom_bar(stat="identity") +
-            geom_text(size=4, vjust=-1) +
-            ylab("Eladott mennyiség (Millió Ft)") +
-            xlab("Top eladott Farmmixes termék") +
-            scale_y_continuous(labels=plotYCont) + 
-            theme(
-                axis.text.x=element_blank()
-            ) + 
-            guides(
-                fill=guide_legend(title="Termékek")
-            ) 
+        if (plot) {
+            ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale),
+                                             y=sale,
+                                             fill=reorder(name,-sale),
+                                             label=ft.format(sale, "million"))) + 
+                geom_bar(stat="identity") +
+                geom_text(size=4, vjust=-1) +
+                ylab("Eladott mennyiség (Millió Ft)") +
+                xlab("Top eladott Farmmixes termék") +
+                scale_y_continuous(labels=plotYCont) + 
+                theme(
+                    axis.text.x=element_blank()
+                ) + 
+                guides(
+                    fill=guide_legend(title="Termékek")
+                ) 
+        } else {
+            return(topXSoldTetel)
+        }
     } else {
         stop("The topX variable should be a number")
     }
