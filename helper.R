@@ -1,3 +1,17 @@
+fmxYear = function (connection, year) {
+    object = list(Connection = connection, 
+                  Year = year)
+    class(object) = "fmxYear"
+    return(object)
+}
+
+topXResult = function (topx.percent, data) {
+    object = list(top.x.percent = topx.percent,
+                  result = data)
+    class(object) = "topXResult"
+    return(object)
+}
+
 plotYCont = function (x) {
     paste(round(x/1000000,1), " Millió Ft")
 }

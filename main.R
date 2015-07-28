@@ -7,16 +7,13 @@ library('forecast')
 dbPassword = "PcL233yW"
 the_year=2015
 
-fmxYear = function (connection, year) {
-    object = list(Connection = connection, 
-                  Year = year)
-    class(object) = "fmxYear"
-    return(object)
-}
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
            "./jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
+connection_live = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://fmxboszormeny.noip.us:3050/", "dbs_hb", sep=""),
+                       "SYSDBA", "masterkey")
 connection = dbConnect(drv, 
                        paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2015.fdb", sep=""),
                        "SYSDBA", dbPassword)
