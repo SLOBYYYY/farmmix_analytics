@@ -49,12 +49,15 @@ plotBarChartForUzletkotokByFarmmixSales(connection)
 # Sales 
 ###############
 plotTermekCsoportForSoldTermekek(connection)
-plotTopXProducts(connection, 10)
-plotTopXFarmmixProducts(connection, 10)
-plotProductSaleForLifetime(connections, 'ADENGO  5')
-topXIsWhatPercentOfAllProducts(connection, 5)
-topXFarmmixIsWhatPercentOfAllProducts(connection, 5)
-worstXProducts(connection, 20)
+plotTopXProducts(connection, 10, plot=T)
+plotTopXFarmmixProducts(connection, 10, T)
+fmx = plotTopXFarmmixProducts(connection, 10)
+plotProductSaleForLifetime(connections, as.character(fmx$name)[1:3])
+topXIsWhatPercentOfAllProducts(connection, 10)
+topXFarmmixIsWhatPercentOfAllProducts(connection, 10)
+# A farmmix és farmmix alternatív forgalmazót külön kéne venni és
+# a nem farmmixes termékek csak a nem farmmixeseket jelenítsék meg
+worstXProducts(connection, 100)
 worstXFarmmixProducts(connection, 20)
 
 printYearlySales(connection_2010_2012, 2010)
@@ -63,6 +66,7 @@ plotYearlySales(connection_2010_2012, 2010, "month")
 printYearlySales(connection_2010_2012, 2011)
 printYearlySales(connection_2010_2012, 2011, "today")
 plotYearlySales(connection_2010_2012, 2011, "month")
+# Mi ez a nagy minusz március előtt?
 printYearlySales(connection_2010_2012, 2012)
 printYearlySales(connection_2010_2012, 2012, "today")
 plotYearlySales(connection_2010_2012, 2012, "month")
@@ -87,8 +91,9 @@ plotFarmmixProductsRatioForYears(connections, 'month')
 
 # Customers
 ##############
-topXBestCustomerForAllProducts(connection, 10)
+topXBestCustomerForAllProducts(connection, 20)
 topXBestCustomerForFarmmixProducts(connection, 10)
+# Külön legyen itt is az alternatív és a sima farmmixes
 topXRecurringCustomers(connection, 10)
 #topXLatePayers(connection, 10) # not good
 
@@ -97,3 +102,48 @@ topXRecurringCustomers(connection, 10)
 ##############
 fit = forecastSales(connections)
 plot(fit)
+fit
+
+
+# Átlagos eladási ár kell (pl top 20 terméknél) + mennyiség
+
+# Átküldeni holnapra:
+# illetve külön kéne a vetőmagokat, növényvédőszert és műtrágyákat venni
+# növényvédőszert is tovább kell bondani: farmmix, alternatív, többi
+# top 30 kell és mennyi lett bleőle eladva illetve az átlagár
+# hány százalékot ér el a saját csoportján belül(!) -> pl top nem farmmixes
+# az összes nem farmmixes közül
+source("sales.R")
+for(product.group in levels(factor(c("vetomag", "novenyvedoszer", "mutragya")))) {
+    filename = paste("report/", product.group, "_osszesszolgaltato.csv", sep="")
+    topx.products = plotTopXProducts(connection_live, 30, product.group = product.group, plot=F)
+    write.csv(topx.products$result, filename)
+    write.table(topx.products$top.x.percent, filename, append=T, row.names=F, col.names=F)
+}
+for (provider in levels(factor(c("farmmix", "alternativ", "notfarmmix")))) {
+    filename = paste("report/", provider, "_osszestermekcsoport.csv", sep="")
+    topx.products = plotTopXProducts(connection_live, 30, provider = provider, plot=F)
+    write.csv(topx.products$result, filename)
+    write.table(topx.products$top.x.percent, filename, append=T, row.names=F, col.names=F)
+    for(product.group in levels(factor(c("vetomag", "novenyvedoszer", "mutragya")))) {
+        filename = paste("report/", provider,"_", product.group, ".csv", sep="")
+        topx.products = plotTopXProducts(connection_live, 30, provider = provider, product.group = product.group, plot=F)
+        write.csv(topx.products$result, filename)
+        write.table(topx.products$top.x.percent, filename, append=T, row.names=F, col.names=F)
+    }
+}
+
+# Üzletkötő metrika: mennyit késnek a vevői
+# Üzletkötő metrika 2: mennyi tartozást visz át a következő évre
+# Üzletkötő metrika 3: mennyi az átlagos késése a vevőinek
+# Üzletkötő metrika 4: Üzletkötőnként a top x termék átlaga, szórása, mennyisége, szummája
+# Üzletkötő metrika 5: ugyanaz mint a termék metrika lent, a gyári ár és a termék átlagáraknál
+#                       (megj.: ez mehet a 4. metrika mellé nyugodtan)
+# Üzletkötő metrika 6: top x vevője a bevételének hány százaléka
+# Üzletkötő metrika 7: hány új vevője volt az évben
+# Üzletkötő metrika 8: hány inaktív vevője van (nem vásárolt semmit)
+# Üzletkötő metrika 9: forecast a jövő éves bevételre
+
+
+# Termék metrika: a gyári árhoz képest mennyi volt a termék átlag eladási ára százalékosan (minusz plusz x% differencia)
+#                 (megjegyzés: a gyári ár kb márciustól aktuális)
