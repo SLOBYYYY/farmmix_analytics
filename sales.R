@@ -21,29 +21,62 @@ plotTopXProducts = function (dbConnection, topX=NULL, provider=NULL, product.gro
             )
         }
         command = paste("select", 
-                        topXCommand,
-                        "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
+                        "termek.nev, szamlatetel.eladar, szamlatetel.mennyiseg, szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\"",
                         "from szamlatetel join",
                         "termek on termek.id_termek = szamlatetel.id_termek join",
                         "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join",
                         "csoport on csoport.id_csoport = termek.id_csoport",
                         "where 1=1",
                         providerCommand,
-                        productGroupCommand,
-                        "group by termek.nev",
-                        "order by \"EladarSum\" desc"
+                        productGroupCommand
                         )
-        topXSoldTetel = dbGetQuery(dbConnection, command)
+        sold.items = dbGetQuery(dbConnection, command)
+        if (nrow(sold.items) == 0) {
+            print(paste("Nincs eladás ",
+                        ifelse(is.null(product.group), "az összes csoportban ", paste("a(z) ", product.group, " csoportban",sep="")),
+                        ifelse(is.null(provider), "az összes szolgáltatóval", paste(" a(z) ", provider, " szolgáltatóval",sep="")),
+                        sep=""))
+            return(topXResult(NA,NA))
+        }
                                      
-        colnames(topXSoldTetel) = c('name', 'sale')
-        topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
+        colnames(sold.items) = c('name', 'price', 'count', 'total')
+        sold.items$name = factor(sold.items$name, ordered=T)
+        
+        sold.items.aggregated = aggregate(sold.items$total, list(sold.items$name), sum)
+        colnames(sold.items.aggregated) = c('name', 'total')
+        sold.items.aggregated$total = round(sold.items.aggregated$total, 0)
+        for (i in seq(along=sold.items.aggregated$name)) {
+            tetel.sales = sold.items[which(sold.items$name == sold.items.aggregated[i,'name']),]
+            sold.items.aggregated[i,'count'] = sum(tetel.sales$count)
+            tetel.mean = mean(tetel.sales$price)
+            sold.items.aggregated[i,'mean'] = round(tetel.mean,0)
+            sold.items.aggregated[i,'median'] = round(median(tetel.sales$price),0)
+            tetel.sd = sd(tetel.sales$price)
+            sold.items.aggregated[i,'sd'] = round(tetel.sd,2)
+            sold.items.aggregated[i,'diffratio'] = paste(round(tetel.sd / tetel.mean * 100,2),"%")
+            tetel.stats = boxplot.stats(tetel.sales$price, coef=2)
+            sold.items.aggregated[i,'outliers'] = length(tetel.stats$out)
+        }
+        
+        topx.sold.items.aggregated = arrange(sold.items.aggregated,-total)[1:topX,]
+        total.sold.items = sum(sold.items$total)
+        topx.is.percent.of.total = round(sum(topx.sold.items.aggregated$total, na.rm = T) / total.sold.items * 100, 2)
+        print(paste("A top ",
+                    topX,
+                    ifelse(is.null(product.group), " összes termék", paste(" termék a megadott típusból(", product.group, ")", sep="")),
+                    ifelse(is.null(provider), " az összes szolgáltatóval a bevétel ", paste(" a megadott szolgáltatóval(", provider, ") ", sep="")),
+                    topx.is.percent.of.total,
+                    '%-át hozza',
+                    sep=""))
+        #topx.sold.items.aggregated$totalformatted = ft.format(topx.sold.items.aggregated$total)
+        colnames(topx.sold.items.aggregated) = c("Név", "Total", "Mennyiség", "Átlag", "Median", "Eloszlás", "Eloszlás/Átlag%","Kívülálló")
         
         if (plot) {
-            ggplot(data = topXSoldTetel,
-                   aes(x=reorder(name,-sale),
-                       y=sale,
-                       fill=reorder(name,-sale),
-                       label=ft.format(sale, "million"))) + 
+            ggplot(data = topx.sold.items.aggregated,
+                   aes(x=reorder(name,-total),
+                       y=total,
+                       fill=reorder(name,-total),
+                       label=ft.format(total, "million"))) + 
                 geom_bar(stat="identity") +
                 geom_text(size=4, vjust=-1) +
                 ylab("Eladott mennyiség (Millió Ft)") +
@@ -56,46 +89,8 @@ plotTopXProducts = function (dbConnection, topX=NULL, provider=NULL, product.gro
                     fill=guide_legend(title="Termékek")
                 ) 
         } else {
-            return(topXSoldTetel)
-        }
-    } else {
-        stop("The topX variable should be a number")
-    }
-}
-#plotTopXProducts(connection, 10, provider="farmmix", product.group="novenyvedoszer", plot=F)
-    
-
-plotTopXFarmmixProducts = function (dbConnection, topX, plot=F) {
-    if (is.numeric(topX)) {
-        topXSoldTetel = dbGetQuery(dbConnection,
-                                     paste("select first", topX, "termek.nev, sum(szamlatetel.eladar * szamlatetel.mennyiseg) as \"EladarSum\"",
-                                           "from szamlatetel join ", 
-                                           "termek on termek.id_termek = szamlatetel.id_termek join",
-                                           "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo",
-                                           "where forgalmazo.nev like '%FARMMIX%'",
-                                           "group by termek.nev",
-                                           "order by \"EladarSum\" desc"))
-        colnames(topXSoldTetel) = c('name', 'sale')
-        topXSoldTetel$name = factor(topXSoldTetel$name, ordered=T)
-        
-        if (plot) {
-            ggplot(data = topXSoldTetel, aes(x=reorder(name,-sale),
-                                             y=sale,
-                                             fill=reorder(name,-sale),
-                                             label=ft.format(sale, "million"))) + 
-                geom_bar(stat="identity") +
-                geom_text(size=4, vjust=-1) +
-                ylab("Eladott mennyiség (Millió Ft)") +
-                xlab("Top eladott Farmmixes termék") +
-                scale_y_continuous(labels=plotYCont) + 
-                theme(
-                    axis.text.x=element_blank()
-                ) + 
-                guides(
-                    fill=guide_legend(title="Termékek")
-                ) 
-        } else {
-            return(topXSoldTetel)
+            return(topXResult(topx.is.percent.of.total, 
+                       topx.sold.items.aggregated))
         }
     } else {
         stop("The topX variable should be a number")
