@@ -4,10 +4,6 @@ AgentSales = function (connection) {
         localConnection = connection
         result = NULL
         loadSpecialProducts = function () {
-            #python duplo csomag melyik?
-            #pulsar miért piros?
-            #stellarból melyik?
-            #taltos melyik? (mindketto)
             command = paste("select id_termek",
                             "from termek",
                             "where lower(termek.nev) in ('adengo  1', 'adengo  5', 'afalon disp.  5', 'antracol wg   6', 'bactospeine  5', 'biathlon 4d', 'biscaya  3', 'bumper 25 ec  5',", 
@@ -19,7 +15,8 @@ AgentSales = function (connection) {
 			       							  "'nuflon  5', 'nurelle-d 500 ec 1', 'nurelle-d 500 ec 5', 'ordax super (0,45l c+10l ss+3l d)', 'pendigan 330 ec   10', 'perenal  5',",
 			       							  "'pictor  5', 'prosaro               5', 'prolectus  0,25', 'pulsar          5', 'pyrinex 48 ec   5', 'pyrinex supreme  5', 'racer 25 ec     5',",
 			       							  "'sekator od  1', 'solofol 80 wdg  10', 'stabilan sl     10', 'systhane duplo  1', 'trek p  5', 'tango star      5', 'teppeki 50 wg  0,5',",
-			       							  "'warrant 200 sl  1', 'wing p  10', 'zantara ec 216  5', 'zoom 11 sc  1') or ",
+			       							  "'warrant 200 sl  1', 'wing p  10', 'zantara ec 216  5', 'zoom 11 sc  1', 'python duplo 6ha',",
+                                              "'pulsar          5', 'stellar 1+ dash 1','taltos+polyglycol  1,5+22,5', 'taltos+polyglycol  25*(0,033+0,5)') or ",
 			       							  "lower(termek.nev) like 'bayer sz_l_ cs.'")
                 temp = dbGetQuery(localConnection, command)
                 colnames(temp) = c("id")
