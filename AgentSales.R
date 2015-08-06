@@ -22,33 +22,37 @@ AgentSales = function (connection) {
                 colnames(temp) = c("id")
                 return(temp)
         }
-        aggregateByCriteria = function (data, agents, criteria) {
-            ss = data[which(criteria),]
-            if (nrow(ss) == 0) {
+        removePhoneBills = function (data) {
+            return(data[-which(grepl(" HAVI (MOBIL|VEZET.KES) ?TEL", data$product_name)),])
+        }
+        imputeAgentName = function (data) {
+            data.without.agents = is.na(data$agent_name)
+            data[which(data.without.agents),'agent_name'] = 'Ismeretlen'
+            return (data)
+        }
+        aggregateForAgents = function (data, agents) {
+            if (nrow(data) == 0) {
                 return (rep(0, length(agents$agent_name)))
             }
-            aggregated.sales = aggregate(ss$totalprice, 
-                                         list(ss$agent_name),
-                                         sum)
+            aggregated.sales = aggregate(data$totalprice, 
+                                         list(data$agent_name),
+                                         function (x) { round(sum(x),0)})
             colnames(aggregated.sales) = c("agent_name", "sum")
             merged = merge(agents, aggregated.sales, by="agent_name", all.x=T)[,2]
             return(merged)
         }
-        aggregateByCriteriaForNovenyvedoszer = function (data, agents, criteria) {
-            ss = subset(data, grepl("^GYOM.RT. SZER$|^BIOCID$|^GOMBA.L. SZER$|^ROVAR.L. SZER$|^TALAJFERT.TLEN.T. SZER$|^ADAL.K ANYAG$|^CS.V.Z. SZER$|^N.V.NYV.D. SZEREK$", result$group_name))
-            return(aggregateByCriteria(ss, agents, criteria))
+        aggregateByCriteria = function (data, agents, criteria) {
+            ss = data[which(criteria),]
+            return(aggregateForAgents(ss, agents))
         }
-        aggregateByCriteriaForNovenyvedoszerAndMutragya = function (data, agents, criteria) {
-            ss = subset(data, grepl("^GYOM.RT. SZER$|^BIOCID$|^GOMBA.L. SZER$|^ROVAR.L. SZER$|^TALAJFERT.TLEN.T. SZER$|^ADAL.K ANYAG$|^CS.V.Z. SZER$|^N.V.NYV.D. SZEREK$|^M.TR.GYA$", result$group_name))
-            return(aggregateByCriteria(ss, agents, criteria))
+        aggregateForProvider = function (data, agents, provider) {
+            ss = subset(data, grepl(provider, data$provider_name))
+            return(aggregateForAgents(ss, agents))
         }
-        aggregateByCriteriaForNovenyvedoszerAndVetomag = function (data, agents, criteria) {
-            ss = subset(data, grepl("^GYOM.RT. SZER$|^BIOCID$|^GOMBA.L. SZER$|^ROVAR.L. SZER$|^TALAJFERT.TLEN.T. SZER$|^ADAL.K ANYAG$|^CS.V.Z. SZER$|^N.V.NYV.D. SZEREK$|^VET.MAG$", result$group_name))
-            return(aggregateByCriteria(ss, agents, criteria))
-        }
-        aggregateByCriteriaForVetomag = function (data, agents, criteria) {
-            ss = subset(data, grepl("^VET.MAG$", result$group_name))
-            return(aggregateByCriteria(ss, agents, criteria))
+        aggregateByCriteriaForVetomagForProvider = function (data, agents, provider) {
+            ss = subset(data, grepl("^VET.MAG$", data$group_name))
+            ss = subset(ss, grepl(provider, ss$provider_name))
+            return(aggregateForAgents(ss, agents))
         }
         me = list (
             thisEnv = thisEnv,
@@ -75,51 +79,70 @@ AgentSales = function (connection) {
                 print("Data is loaded into memory")
             },
             report = function () {
-                special.products = loadSpecialProducts()
-                agent.sales = data.frame("agent_name"=sort(unique(result$agent_name)))
-                agents = data.frame("agent_name"=sort(unique(result$agent_name)))
-                agent.sales$FarmmixNovszMtVetomag = aggregateByCriteria(result, agents, grepl("^FARMMIX KFT$", result$provider_name))
-                agent.sales$FAlternativNovszMt = aggregateByCriteria(result, agents, grepl("^FARMMIX KFT ALT", result$provider_name))
-                agent.sales$Agrosol = aggregateByCriteria(result, agents, grepl("AGROSOL", result$provider_name))
-                agent.sales$Vetco = aggregateByCriteria(result, agents, grepl("VETCO", result$provider_name))
-                agent.sales$Kiemelt = aggregateByCriteria(result, agents, (result$product_id %in% special.products$id))
-                
-                # TODO: not done yet
-                # Az "Egyéb" ez esetben tényleg a szolgáltatónál jelenti, hogy egyéb vagy az összes többi aki nincs benne 
-                # a többi lekérdezésben itt? 
-                # Ami maradt: Egyéb, Magyar Telekom Nyrt, Martonvásár /Elitmag KFT/, Saaten-Union
-                agent.sales$EgyebNagyGyartohozNemKotheto = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^EGY.B$|^MARTONV.S.R|^SAATEN", result$provider_name))
-                agent.sales$Adama = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^ADAMA", result$provider_name))
-                agent.sales$Arysta = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^ARYSTA", result$provider_name))
-                agent.sales$BASF = aggregateByCriteriaForNovenyvedoszerAndMutragya(result, agents, grepl("^BASF", result$provider_name))
-                agent.sales$Belchim = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^BELCHIM", result$provider_name))
-                agent.sales$Cheminova = aggregateByCriteriaForNovenyvedoszerAndMutragya(result, agents, grepl("^CHEMINOVA", result$provider_name))
-                agent.sales$Chemtura = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^CHEMTURA$", result$provider_name))
-                agent.sales$Dow = aggregateByCriteriaForNovenyvedoszerAndVetomag(result, agents, grepl("^DOW", result$provider_name))
-                agent.sales$Dupont = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^DUPONT", result$provider_name))
-                agent.sales$Kwizda = aggregateByCriteriaForNovenyvedoszerAndMutragya(result, agents, grepl("^KWIZDA", result$provider_name))
-                agent.sales$Nufarm = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^NUFARM", result$provider_name))
-                agent.sales$SumiAgro = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^SUMI AGRO", result$provider_name))
-                # Van "Syngenta KFT" és "Syngenta vetőmag". Melyik legyen?
-                agent.sales$Syngenta = aggregateByCriteriaForNovenyvedoszer(result, agents, grepl("^SYNGENTA", result$provider_name))
-                
-                agent.sales$Gabonakutato = aggregateByCriteriaForVetomag(result, agents, grepl("^GABONAKUTAT.", result$provider_name))
-                agent.sales$EgyebVetomag = aggregateByCriteriaForVetomag(result, agents, (grepl("^EGY.B$|^MARTONV.S.R|^SAATEN", result$provider_name) & grepl("^VET.MAG$", result$group_name)))
-                agent.sales$KWS = aggregateByCriteriaForVetomag(result, agents, grepl("^KWS", result$provider_name))
-                agent.sales$Limagrain = aggregateByCriteriaForVetomag(result, agents, grepl("^LIMAGRAIN", result$provider_name))
-                agent.sales$Monsanto = aggregateByCriteriaForVetomag(result, agents, grepl("^MONSANT", result$provider_name))
-                # Nincs ilyen, hogy MV
-                agent.sales$MV = aggregateByCriteriaForVetomag(result, agents, grepl("^MV", result$provider_name))
-                agent.sales$Pioneer = aggregateByCriteriaForVetomag(result, agents, grepl("^PIONEER", result$provider_name))
-                agent.sales$Ragt = aggregateByCriteriaForVetomag(result, agents, grepl("^RAGT", result$provider_name))
-                agent.sales$SumiAgro = aggregateByCriteriaForVetomag(result, agents, grepl("^SUMI AGRO", result$provider_name))
-                agent.sales$Syngenta = aggregateByCriteriaForVetomag(result, agents, grepl("^SYNGENTA", result$provider_name))
-                
-                agent.sales$EgyebMutragya = aggregateByCriteria(result, agents, (grepl("^EGY.B$", result$provider_name) &
-                                                                             grepl("^M.TR.GYA$", result$group_name) &
-                                                                             grepl("^MT|^YARA|^TIMAC", result$product_name) 
-                                                                             ))
-                return(agent.sales)
+                if (is.null(result)) {
+                    stop("Use \"load\" to load data first")
+                } else {
+                    special.products = loadSpecialProducts()
+                    agent.sales = data.frame("agent_name"=sort(unique(result$agent_name)))
+                    agents = data.frame("agent_name"=sort(unique(result$agent_name)))
+                    result = removePhoneBills(result)
+                    result = imputeAgentName(result)
+                    agent.sales$FarmmixNovszMtVetomag = aggregateByCriteria(result, agents, grepl("^FARMMIX KFT$", result$provider_name))
+                    agent.sales$FAlternativNovszMt = aggregateByCriteria(result, agents, grepl("^FARMMIX KFT ALT", result$provider_name))
+                    agent.sales$Agrosol = aggregateByCriteria(result, agents, grepl("AGROSOL", result$provider_name))
+                    agent.sales$Vetco = aggregateByCriteria(result, agents, grepl("VETCO", result$provider_name))
+                    agent.sales$Kiemelt = aggregateByCriteria(result, agents, criteria = (result$product_id %in% special.products$id))
+                    # Axe out the special products for further calculations
+                    result.without.special = result[-which(result$product_id %in% special.products$id),]
+                    
+                    # We filter all products that are:
+                    #   - "Egyéb" is set as a provider
+                    #   - Is not "Műtrágya" or not "Vetőmag"
+                    #   - Is "Műtrágya" but doesn't start with MT, Yara or Timac
+                    agent.sales$EgyebNagyGyartohozNemKotheto = 
+                        aggregateByCriteria(result.without.special,
+                                                           agents,
+                                                           criteria = grepl("^EGY.B$", result.without.special$provider_name) &
+                                                                           (
+                                                                               !grepl("^M.TR.GYA$|^VET.MAG$", result.without.special$group_name) |
+                                                                               (
+                                                                                   grepl("^M.TR.GYA$", result.without.special$group_name) &
+                                                                                    !grepl("^MT|^YARA|^TIMAC", result.without.special$product_name)
+                                                                               )
+                                                                           )
+                                            )
+                    agent.sales$Adama = aggregateForProvider(result.without.special, agents, "^ADAMA")
+                    agent.sales$Arysta = aggregateForProvider(result.without.special, agents, "^ARYSTA")
+                    agent.sales$BASF = aggregateForProvider(result.without.special, agents, "^BASF")
+                    agent.sales$Bayer = aggregateForProvider(result.without.special, agents, "^BAYER")
+                    agent.sales$Belchim = aggregateForProvider(result.without.special, agents, "^BELCHIM")
+                    agent.sales$Cheminova = aggregateForProvider(result.without.special, agents, "^CHEMINOVA")
+                    agent.sales$Chemtura = aggregateForProvider(result.without.special, agents, "^CHEMTURA$")
+                    agent.sales$Dow = aggregateForProvider(result.without.special, agents, "^DOW")
+                    agent.sales$Dupont = aggregateForProvider(result.without.special, agents, "^DUPONT")
+                    agent.sales$Kwizda = aggregateForProvider(result.without.special, agents, "^KWIZDA")
+                    agent.sales$Nufarm = aggregateForProvider(result.without.special, agents, "^NUFARM")
+                    agent.sales$SumiAgroNovvedo = aggregateForProvider(result.without.special, agents, "^SUMI AGRO")
+                    agent.sales$SyngentaNovvedo = aggregateForProvider(result.without.special, agents, "^SYNGENTA KFT$")
+                    
+                    agent.sales$Gabonakutato = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^GABONAKUTAT.")
+                    agent.sales$EgyebVetomag = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^EGY.B$")
+                    agent.sales$KWS = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^KWS")
+                    agent.sales$Limagrain = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^LIMAGRAIN")
+                    agent.sales$Monsanto = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^MONSANT")
+                    agent.sales$Martonvasar = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^MARTONV.S.R")
+                    agent.sales$Pioneer = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^PIONEER")
+                    agent.sales$Ragt = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^RAGT")
+                    agent.sales$Saaten = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^SAATEN") 
+                    agent.sales$SumiAgroVetomag = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^SUMI AGRO")
+                    agent.sales$SyngentaVetomag = aggregateByCriteriaForVetomagForProvider(result.without.special, agents, "^SYNGENTA VET.MAG$")
+                    
+                    agent.sales$EgyebMutragya = aggregateByCriteria(result.without.special, agents, (grepl("^EGY.B$", result.without.special$provider_name) &
+                                                                                 grepl("^M.TR.GYA$", result.without.special$group_name) &
+                                                                                 grepl("^MT|^YARA|^TIMAC", result.without.special$product_name) 
+                                                                                 ))
+                    return(agent.sales)
+                }
             }
         )
         assign('this', me, envir = thisEnv)
