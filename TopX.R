@@ -87,6 +87,8 @@ TopX = function (connection) {
                         topx.result.aggregated[i,'diffratio'] = paste(round(result.sd / result.mean * 100,2),"%")
                         result.stats = boxplot.stats(temp$unitprice, coef=2)
                         topx.result.aggregated[i,'outliers'] = length(result.stats$out)
+                        ratio = round(result.mean / mean(temp$factory_price, na.rm = T) * 100, 2)
+                        topx.result.aggregated[i,'factoryratio'] = ratio
                     }
                     
                     topx.result.aggregated[i,'topx'] = round(topx.result.aggregated[i,]$total / total.sold.items * 100, 2)
@@ -97,7 +99,7 @@ TopX = function (connection) {
                 topx.is.percent.of.total = round(sum(topx.result.aggregated$total, na.rm = T) / total.sold.items * 100, 2)
                 
                 if (aggregate.by == "product") {
-                    colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Átlag", "Median", "Eloszlás", "Eloszlás/Átlag%", "Kívülálló", "Top X%", "Top X% kumulatív")
+                    colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Átlag", "Median", "Eloszlás", "Eloszlás/Átlag%", "Kívülálló", "Gyári ár %", "Top X%", "Top X% kumulatív")
                 } else {
                     colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Top X%", "Top X% kumulatív")
                 }
@@ -157,7 +159,7 @@ TopX = function (connection) {
             load = function () {
                 command = paste("select vevo.nev, termek.nev, szamlatetel.eladar, szamlatetel.mennyiseg,",
                                 "szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\", szamla.id_uzletkoto,",
-                                "csoport.nev, forgalmazo.nev, uzletkoto.nev",
+                                "csoport.nev, forgalmazo.nev, uzletkoto.nev, termek.gyariar",
                                 "from szamlatetel join ", 
                                 "szamla on szamla.id_szamla = szamlatetel.id_szamla join",
                                 "vevo on vevo.id_vevo = szamla.id_vevo join",
@@ -166,7 +168,7 @@ TopX = function (connection) {
                                 "csoport on csoport.id_csoport = termek.id_csoport left join",
                                 "uzletkoto on uzletkoto.id_uzletkoto = szamla.id_uzletkoto")
                 temp = dbGetQuery(localConnection, command)
-                colnames(temp) = c("customer", "product", "unitprice", "amount", "totalprice", "id_agent", "group_name", "provider_name", "agent_name")
+                colnames(temp) = c("customer", "product", "unitprice", "amount", "totalprice", "id_agent", "group_name", "provider_name", "agent_name", "factory_price")
                 assign("result", temp, thisEnv)
                 print("Data is loaded into memory")
             },
