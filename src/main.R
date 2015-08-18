@@ -4,16 +4,21 @@ library('ggplot2')
 library('plyr')
 library('scales')
 library('forecast')
+source('helper.R')
+source('agents.R')
+source('sales.R')
+source('customers.R')
+source('forecast.R')
+source('TopX.R')
 dbPassword = "PcL233yW"
 the_year=2015
 
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
-           "./jdbc-driver/jaybird-full-2.2.7.jar",
+           "../jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
-connection_live = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://fmxboszormeny.noip.us:3050/", "dbs_hb", sep=""),
-                       "SYSDBA", "masterkey")
+connection_live = connect.live()
+dbDisconnect(conn = connection_live)
 connection = dbConnect(drv, 
                        paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2015.fdb", sep=""),
                        "SYSDBA", dbPassword)
@@ -30,12 +35,6 @@ connections = list(fmxYear(connection_2010_2012, 2010),
                 fmxYear(connection_2013, 2013),
                 fmxYear(connection_2014, 2014),
                 fmxYear(connection, 2015))
-
-source('helper.R')
-source('agents.R')
-source('sales.R')
-source('customers.R')
-source('forecast.R')
 
 
 
@@ -91,7 +90,7 @@ plotFarmmixProductsRatioForYears(connections, 'month')
 
 # Customers
 ##############
-topXBestCustomerForAllProducts(connection, 20)
+topXBestCustomerForAllProducts(connection, 10)
 topXBestCustomerForFarmmixProducts(connection, 10)
 # Külön legyen itt is az alternatív és a sima farmmixes
 topXRecurringCustomers(connection, 10)
@@ -110,10 +109,9 @@ fit
 # Átküldeni holnapra:
 # illetve külön kéne a vetőmagokat, növényvédőszert és műtrágyákat venni
 # növényvédőszert is tovább kell bondani: farmmix, alternatív, többi
-# top 30 kell és mennyi lett bleőle eladva illetve az átlagár
+# top 30 kell és mennyi lett belőle eladva illetve az átlagár
 # hány százalékot ér el a saját csoportján belül(!) -> pl top nem farmmixes
 # az összes nem farmmixes közül
-source("sales.R")
 for(product.group in levels(factor(c("vetomag", "novenyvedoszer", "mutragya")))) {
     filename = paste("report/", product.group, "_osszesszolgaltato.csv", sep="")
     topx.products = plotTopXProducts(connection_live, 30, product.group = product.group, plot=F)
@@ -133,13 +131,22 @@ for (provider in levels(factor(c("farmmix", "alternativ", "notfarmmix")))) {
     }
 }
 
+agent.data=dbGetQuery(connection, "select id_uzletkoto, nev from uzletkoto")
+colnames(agent.data) = c('id', 'name')
+
+#for (i in seq(along=agent.data$id)) {
+for (i in 20) {
+    topx.products = plotTopXProductsForAgent(connection, 30, provider=NULL, product.group=NULL, agent.data=as.vector(agent.data[i,]), plot=F)
+    print(topx.products)
+}
+
 # Üzletkötő metrika: mennyit késnek a vevői
 # Üzletkötő metrika 2: mennyi tartozást visz át a következő évre
 # Üzletkötő metrika 3: mennyi az átlagos késése a vevőinek
-# Üzletkötő metrika 4: Üzletkötőnként a top x termék átlaga, szórása, mennyisége, szummája
+### Üzletkötő metrika 4: Üzletkötőnként a top x termék átlaga, szórása, mennyisége, szummája
 # Üzletkötő metrika 5: ugyanaz mint a termék metrika lent, a gyári ár és a termék átlagáraknál
 #                       (megj.: ez mehet a 4. metrika mellé nyugodtan)
-# Üzletkötő metrika 6: top x vevője a bevételének hány százaléka
+### Üzletkötő metrika 6: top x vevője a bevételének hány százaléka
 # Üzletkötő metrika 7: hány új vevője volt az évben
 # Üzletkötő metrika 8: hány inaktív vevője van (nem vásárolt semmit)
 # Üzletkötő metrika 9: forecast a jövő éves bevételre
@@ -147,3 +154,28 @@ for (provider in levels(factor(c("farmmix", "alternativ", "notfarmmix")))) {
 
 # Termék metrika: a gyári árhoz képest mennyi volt a termék átlag eladási ára százalékosan (minusz plusz x% differencia)
 #                 (megjegyzés: a gyári ár kb márciustól aktuális)
+
+source('TopX.R')
+ag = TopX(connection)
+ag$load()
+ag$reportProduct(10)
+ag$reportCustomer(10)
+ag$reportCustomer(10, agent.data = agent.data[1,])
+ag$reportProduct(10, product.group = "farmmix", agent.data=agent.data[1,])
+
+
+
+command = paste("select szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\", ",
+                " csoport.nev, forgalmazo.nev, uzletkoto.nev, termek.id_termek, termek.nev,",
+                " vevo.id_vevo, termek.gyariar, szamlatetel.eladar, termek.eladar",
+                " from szamlatetel join ", 
+                " szamla on szamla.id_szamla = szamlatetel.id_szamla join",
+                " vevo on vevo.id_vevo = szamla.id_vevo join",
+                " termek on termek.id_termek = szamlatetel.id_termek join",
+                " forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join",
+                " csoport on csoport.id_csoport = termek.id_csoport left join",
+                " uzletkoto on uzletkoto.id_uzletkoto = szamla.id_uzletkoto",
+                " where szamla.datum >='2015-01-01' and szamla.datum <='2015-06-01'", 
+                sep="")
+temp = dbGetQuery(connection, command)
+colnames(temp) = c("totalprice", "group_name", "provider_name", "agent_name", "product_id", "product_name", "customer_id", "factory_price", "sale_price", "current_price")

@@ -61,3 +61,8 @@ ft.format = function (szam, rounding="none") {
            million = paste(format(round(szam/1000000,2),big.mark=","),"M Ft")
            )
 }
+connect.live = function () {
+    return(dbConnect(drv, 
+           paste("jdbc:firebirdsql://fmxboszormeny.noip.us:3050/", "dbs_hb", sep=""),
+           "SYSDBA", "masterkey"))
+}

@@ -206,6 +206,11 @@ AgentSales = function (connection) {
         return(me)
     }
 }
-as = AgentSales(connection)
+#c = connect.live()
+c = connection
+as = AgentSales(c)
 as$load("2015-01-01", "2015-05-31")
-as$report()
+agents.result = as$report()
+write.csv(agents.result, "report/agent_sales.csv")
+write.csv(t(agents.result), "report/agent_sales_transposed.csv")
+dbDisconnect(conn = c)
