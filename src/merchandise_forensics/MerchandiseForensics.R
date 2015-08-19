@@ -297,8 +297,66 @@ prod.sales = rbind(prod.sales, getSaleForProduct(2015, connection))
 colnames(prod.sales) = c("id_customer", "id_product", "date", "totalprice")
 prod.sales$date = as.Date(prod.sales$date)
 
-getProductData = function (from, to, prod.sales, products) {
-    fagget = inner_join(prod.sales, products, by="id_product")
-    sub.prod = subset(prod.sales, prod.sales$date >= from & prod.sales$date <= to)
-    head(apply(sub.prod, 1, function (x) { x$maxdate <= to & x$mindate >= from }))
+getProductLifeData = function (from, to, prod.sales, products) {
+    prod.sales.combined = inner_join(prod.sales, products, by="id_product")
+    prod.sales.combined = subset(prod.sales.combined, prod.sales.combined$date >= from & prod.sales.combined$date <= to)
+    prod.sales.combined$new = with(prod.sales.combined, mindate >= from & mindate <= to)
+    return (prod.sales.combined)
 }
+
+getNewProductSummary = function (date.limits, prod.sales, products) {
+    result = data.frame(from=character(), to=character(), new.products=numeric(), median.sale=numeric(), mean.sale=numeric(), order.by.product.median=numeric(), order.by.product.mean=numeric())
+    for (i in c(1:dim(date.limits)[1])) {
+        extended.prod.sales = getProductLifeData(date.limits[i,1], date.limits[i,2], prod.sales, products)
+        new.products = subset(extended.prod.sales, extended.prod.sales$new)
+        
+        new.product.count = 0
+        median.sale = 0
+        mean.sale = 0
+        order.value.by.product.median = NA
+        order.value.by.product.mean = NA
+        
+        if (dim(new.products)[1] > 0) {
+            new.product.count = length(unique(new.products$id_product))
+            
+            median.sale = round(median(new.products$totalprice))
+            mean.sale = round(mean(new.products$totalprice))
+            
+            order.value.by.product.median = median(aggregate(new.products$totalprice, list(id_product=new.products$id_product), sum)$x)
+            order.value.by.product.mean = mean(aggregate(new.products$totalprice, list(id_product=new.products$id_product), sum)$x)
+        
+        }
+        result = rbind(result, data.frame(from=date.limits[i,1], to=date.limits[i,2], new.products=new.product.count, median.sale=median.sale, mean.sale=mean.sale, order.value.by.product.median=order.value.by.product.median, order.value.by.product.mean=order.value.by.product.mean))
+    }
+    return (result)
+}
+
+print(getNewProductSummary(date.limits, prod.sales, products))
+
+getExistingProductSummary = function (date.limits, prod.sales, products) {
+    result = data.frame(from=character(), to=character(), existing.products=numeric(), median.sale=numeric(), mean.sale=numeric(), order.by.product.median=numeric(), order.by.product.mean=numeric())
+    for (i in c(1:dim(date.limits)[1])) {
+        extended.prod.sales = getProductLifeData(date.limits[i,1], date.limits[i,2], prod.sales, products)
+        existing.products = subset(extended.prod.sales, !extended.prod.sales$new)
+        
+        existing.product.count = 0
+        median.sale = 0
+        mean.sale = 0
+        order.value.by.product.median = NA
+        order.value.by.product.mean = NA
+        
+        if (dim(existing.products)[1] > 0) {
+            existing.product.count = length(unique(existing.products$id_product))
+            
+            median.sale = round(median(existing.products$totalprice))
+            mean.sale = round(mean(existing.products$totalprice))
+            
+            order.value.by.product.median = median(aggregate(existing.products$totalprice, list(id_product=existing.products$id_product), sum)$x)
+            order.value.by.product.mean = mean(aggregate(existing.products$totalprice, list(id_product=existing.products$id_product), sum)$x)
+        }
+        result = rbind(result, data.frame(from=date.limits[i,1], to=date.limits[i,2], existing.products=existing.product.count, median.sale=median.sale, mean.sale=mean.sale, order.value.by.product.median=order.value.by.product.median, order.value.by.product.mean=order.value.by.product.mean))
+    }
+    return (result)
+}
+
+print(getExistingProductSummary(date.limits, prod.sales, products))
