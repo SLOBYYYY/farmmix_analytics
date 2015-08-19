@@ -2,7 +2,7 @@ library('RJDBC')
 library('dplyr')
 dbPassword = "PcL233yW"
 drv = JDBC("org.firebirdsql.jdbc.FBDriver",
-           "./jdbc-driver/jaybird-full-2.2.7.jar",
+           "../jdbc-driver/jaybird-full-2.2.7.jar",
            identifier.quote="`")
 # Firebird is very sensitive to the URL format. This should be used: jdbc:firebirdsql://host:port//path/to/teh/shit.fdb
 connection = dbConnect(drv, 
@@ -53,7 +53,7 @@ eom <- function(date) {
 
 #starting.year = 2015
 starting.year = format(Sys.Date(), "%Y")
-#starting.month = 8
+#starting.month = 1
 starting.month = format(Sys.Date(), "%m")
 this.year.beginning = seq(as.Date(paste(starting.year, "-", starting.month, "-01",sep="")), length=2, by="-12 months")[2]
 this.year.end = eom(seq(this.year.beginning, length=2, by="11 months")[2])
@@ -242,47 +242,40 @@ colnames(all.customers) = c('Időszak kezdete', 'Időszak vége', 'Vásárlások
                                  'Átl. tétel ügyfelenként', 'Median tétel ügyfelenként')
 all.customers
 
-# Idézet a köynvből: 
+# Idézet a könyvből: 
 # "Average order value is a terribly important sign of the health of a business, in combination with other metrics. 
 # When all metrics are suffering, but average order value is growing, we surmise that Management is actively trying 
 # to squeeze as much out of the business as is humanly possible, to keep the business afloat.
-# Mi esetünkben:
-#   ami nőtt:
-#       - Vásárlások átlagos száma (átlag 6%)
-#       - Újravásárlók (szignifikánsan, 13%-kal)
-#       - Median bevétel ügyfelenként (6%-kal)
-#   ami csökkent:
-#       - Átlag és median bevétel rendelésenként (2.7%, 3%)
-
-# Arra tudunk következtetni, hogy a visszatérő vevők száma megnőtt és ez nagyjából egyensúlyozza a csökkenést ami a 
-# rendelésenkénti átlagban történt
 
 
-products = data.frame(ID_TERMEK=numeric(), NEV=character(), DATUM=character())
 getProductData = function (year, connection) {
-    command = paste("select distinct t.id_termek, lower(t.nev) as \"nev\", sz.datum",
+    command = paste("select distinct t.id_termek, sz.datum",
                     " from szamlatetel szt join",
                     " termek t on t.id_termek = szt.id_termek join",
                     " szamla sz on sz.id_szamla = szt.id_szamla")
     return(dbGetQuery(connection, command))
 }
+products = data.frame(ID_TERMEK=numeric(), NEV=character(), DATUM=character())
 products = rbind(products, getProductData(2010, connection_2010_2012))
 products = rbind(products, getProductData(2011, connection_2010_2012))
 products = rbind(products, getProductData(2012, connection_2010_2012))
 products = rbind(products, getProductData(2013, connection_2013))
 products = rbind(products, getProductData(2014, connection_2014))
 products = rbind(products, getProductData(2015, connection))
-colnames(products) = c("id_product", "name", "date")
-products$name = as.factor(products$name)
-products$date = as.Date(products$date)
-products.with.startdate = aggregate(products$date, list(name=products$name), min)
-products.with.enddate = aggregate(products$date, list(name=products$name), max)
-products = inner_join(products[,c('id','name')], products.with.startdate, by='name')
-colnames(products)[3] = 'mindate'
-products = inner_join(products, products.with.enddate, by='name')
-colnames(products)[4] = 'maxdate'
-products = unique(products)
 
+cleanProduct = function (products) {
+    colnames(products) = c("id_product", "date")
+    products$date = as.Date(products$date)
+    aggregated.mindate = aggregate(products$date, list(id_product=products$id_product), min)
+    aggregated.maxdate = aggregate(products$date, list(id_product=products$id_product), max)
+    joined.products = inner_join(aggregated.mindate, aggregated.maxdate, by='id_product')
+    colnames(joined.products)[2] = 'mindate'
+    colnames(joined.products)[3] = 'maxdate'
+    joined.products = unique(joined.products)
+    rownames(joined.products) = NULL
+    return (joined.products)
+}
+products = cleanProduct(products)
 
 getSaleForProduct = function (year, connection) {
     command = paste("select v.id_vevo, szt.id_termek, sz.datum, (szt.eladar * szt.mennyiseg) as \"mennyiseg\"",
@@ -293,6 +286,7 @@ getSaleForProduct = function (year, connection) {
                     
     return(dbGetQuery(connection, command))
 }
+
 prod.sales = data.frame(ID_VEVO=numeric(), ID_TERMEK=character(), DATUM=character(), MENNYISEG=numeric())
 prod.sales = rbind(prod.sales, getSaleForProduct(2010, connection_2010_2012))
 prod.sales = rbind(prod.sales, getSaleForProduct(2011, connection_2010_2012))
