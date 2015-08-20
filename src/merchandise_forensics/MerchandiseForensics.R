@@ -252,7 +252,8 @@ getProductData = function (year, connection) {
     command = paste("select distinct t.id_termek, sz.datum",
                     " from szamlatetel szt join",
                     " termek t on t.id_termek = szt.id_termek join",
-                    " szamla sz on sz.id_szamla = szt.id_szamla")
+                    " szamla sz on sz.id_szamla = szt.id_szamla",
+                    " where extract(year from sz.datum) = ", year)
     return(dbGetQuery(connection, command))
 }
 products = data.frame(ID_TERMEK=numeric(), NEV=character(), DATUM=character())
@@ -278,7 +279,7 @@ cleanProduct = function (products) {
 products = cleanProduct(products)
 
 getSaleForProduct = function (year, connection) {
-    command = paste("select v.id_vevo, szt.id_termek, sz.datum, (szt.eladar * szt.mennyiseg) as \"mennyiseg\"",
+    command = paste("select v.id_vevo, szt.id_termek, sz.datum, (szt.eladar * szt.mennyiseg) as \"total\"",
                     " from szamlatetel szt join",
                     " szamla sz on sz.id_szamla = szt.id_szamla join",
                     " vevo v on v.id_vevo = sz.id_vevo",
@@ -287,7 +288,7 @@ getSaleForProduct = function (year, connection) {
     return(dbGetQuery(connection, command))
 }
 
-prod.sales = data.frame(ID_VEVO=numeric(), ID_TERMEK=character(), DATUM=character(), MENNYISEG=numeric())
+prod.sales = data.frame(ID_VEVO=numeric(), ID_TERMEK=character(), DATUM=character(), TOTAL=numeric())
 prod.sales = rbind(prod.sales, getSaleForProduct(2010, connection_2010_2012))
 prod.sales = rbind(prod.sales, getSaleForProduct(2011, connection_2010_2012))
 prod.sales = rbind(prod.sales, getSaleForProduct(2012, connection_2010_2012))
@@ -360,3 +361,76 @@ getExistingProductSummary = function (date.limits, prod.sales, products) {
 }
 
 print(getExistingProductSummary(date.limits, prod.sales, products))
+
+# Conclusion:
+# Although numerous new products were introduced in the last segment (436) the median and mean sale of them is clearly declining 
+# by a huge margin (median: 17850 -> 12376, mean: 135606 -> 93063, more than 30% drop!!!)
+# Idézet a könyvből:
+# New item productivity is failing
+# It's new items that are holding this business back. One of three things must be happening.
+# 1. The rate that this company creates new "winners" is in decline.
+# 2. This company is not investing in new merchandise.
+# 3. This company is not investing in new merchandise, and the items this company chooses to invest in do not achieve winning status.
+
+getGroupSale = function (year, connection) {
+    command = paste("select distinct cs.id_csoport, cs.nev, sz.datum, sz.id_szamla, sum(szt.eladar * szt.mennyiseg) as \"total\"",
+                    " from szamlatetel szt join",
+                    " termek t on t.id_termek = szt.id_termek join",
+                    " csoport cs on cs.id_csoport = t.id_csoport join",
+                    " szamla sz on sz.id_szamla = szt.id_szamla",
+                    " where extract(year from sz.datum) = ", year,
+                    " group by cs.id_csoport, cs.nev, sz.datum, sz.id_szamla")
+    return(dbGetQuery(connection, command))
+}
+
+group.sales = data.frame(ID_CSOPORT=numeric(), NEV=character(), DATUM=character(), ID_SZAMLA=numeric(), TOTAL=numeric())
+group.sales = rbind(group.sales, getGroupSale(2010, connection_2010_2012))
+group.sales = rbind(group.sales, getGroupSale(2011, connection_2010_2012))
+group.sales = rbind(group.sales, getGroupSale(2012, connection_2010_2012))
+group.sales = rbind(group.sales, getGroupSale(2013, connection_2013))
+group.sales = rbind(group.sales, getGroupSale(2014, connection_2014))
+group.sales = rbind(group.sales, getGroupSale(2015, connection))
+colnames(group.sales) = c("id_group", "name", "date", "id_bill", "totalprice")
+
+getGroupSummary = function (date.limits, group.sales, FUN) {
+    column.count = dim(date.limits)[1]
+    colnames = NULL
+    for (date.index in c(1:column.count)) {
+        colname = paste(date.limits[date.index,1], "-", date.limits[date.index,2], sep="")
+        colnames = c(colnames, colname)
+    }
+    rownames = sort(unique(group.sales$name))
+    row.count = length(unique(group.sales$name))
+    
+    result = matrix(nrow=row.count, ncol=column.count + 1, byrow = T)
+    colnames(result) = c("Name", colnames)
+    result[,1] = rownames
+        
+    for (date.limit.index in c(1:dim(date.limits)[1])) {
+        # aggregate orders results based on the first column (name in this case)
+        # make sure it is aligned with the first column that is currently in the result matrix
+        from = date.limits[date.limit.index, 1]
+        to = date.limits[date.limit.index, 2]
+        group.sales.filtered = with(group.sales, subset(group.sales, date >= from & date <= to))
+        groups.filtered = with(group.sales.filtered, aggregate(totalprice, list(name=name), FUN))
+        filtered.group.indices = which(rownames %in% groups.filtered$name)
+        result[filtered.group.indices, date.limit.index + 1] = round(groups.filtered$x)
+    }
+    
+    for (column in c(2:(dim(result)[2]-1))) {
+        condition = is.na(result[, column+1])
+        divider = as.numeric(ifelse(is.na(result[, column+1]), rep(1, nrow(result)), result[,column+1]))
+        target = as.numeric(ifelse(is.na(result[, column]), rep(1, nrow(result)), result[, column]))
+        values = ifelse(divider == 1 & target != 1, 100, (target / divider) * 100)
+        result[, column] = paste(result[, column],
+                                 " (",
+                                 round(values, 2),
+                                 "%)",
+                                 sep="")
+    }
+    return (result)
+}
+
+print(getGroupSummary(date.limits, group.sales, sum))
+print(getGroupSummary(date.limits, group.sales, mean))
+print(getGroupSummary(date.limits, group.sales, median))
