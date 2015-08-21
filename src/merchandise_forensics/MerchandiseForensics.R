@@ -391,46 +391,14 @@ group.sales = rbind(group.sales, getGroupSale(2014, connection_2014))
 group.sales = rbind(group.sales, getGroupSale(2015, connection))
 colnames(group.sales) = c("id_group", "name", "date", "id_product", "totalprice")
 
-getGroupSummary = function (date.limits, group.sales, FUN) {
-    column.count = dim(date.limits)[1]
-    colnames = NULL
-    for (date.index in c(1:column.count)) {
-        colname = paste(date.limits[date.index,1], "-", date.limits[date.index,2], sep="")
-        colnames = c(colnames, colname)
-    }
-    rownames = sort(unique(group.sales$name))
-    row.count = length(unique(group.sales$name))
-    
-    result = matrix(nrow=row.count, ncol=column.count + 1, byrow = T)
-    colnames(result) = c("Name", colnames)
-    result[,1] = rownames
-        
-    for (date.limit.index in c(1:dim(date.limits)[1])) {
-        # aggregate orders results based on the first column (name in this case)
-        # make sure it is aligned with the first column that is currently in the result matrix
-        from = date.limits[date.limit.index, 1]
-        to = date.limits[date.limit.index, 2]
-        group.sales.filtered = with(group.sales, subset(group.sales, date >= from & date <= to))
-        groups.filtered = with(group.sales.filtered, aggregate(totalprice, list(name=name), FUN))
-        filtered.group.indices = which(rownames %in% groups.filtered$name)
-        result[filtered.group.indices, date.limit.index + 1] = round(groups.filtered$x)
-    }
-    
-    for (column in c(2:(dim(result)[2]-1))) {
-        condition = is.na(result[, column+1])
-        divider = as.numeric(ifelse(is.na(result[, column+1]), rep(1, nrow(result)), result[,column+1]))
-        target = as.numeric(ifelse(is.na(result[, column]), rep(1, nrow(result)), result[, column]))
-        values = ifelse(divider == 1 & target != 1, 100, (target / divider) * 100)
-        result[, column] = paste(result[, column],
-                                 " (",
-                                 round(values, 2),
-                                 "%)",
-                                 sep="")
-    }
-    return (result)
-}
 
-getNewProductGroupSummary = function (date.limits, group.sales, products, FUN) {
+getGroupSummary = function (date.limits, group.sales, products=NULL, filter.by=NULL, FUN) {
+    if (!is.null(filter.by) & is.null(products)) {
+        stop("Product data with min and max date has to be passed if filter.by is set")
+    }
+    if (!is.null(filter.by) && filter.by != "new" && filter.by != "existing") {
+        stop("filter.by can be null, 'new' or 'existing'")
+    }
     column.count = dim(date.limits)[1]
     colnames = NULL
     for (date.index in c(1:column.count)) {
@@ -449,14 +417,24 @@ getNewProductGroupSummary = function (date.limits, group.sales, products, FUN) {
         # make sure it is aligned with the first column that is currently in the result matrix
         from = date.limits[date.limit.index, 1]
         to = date.limits[date.limit.index, 2]
-        group.sales.filtered = getProductLifeData(date.limits[date.limit.index, 1],
-                                                  date.limits[date.limit.index, 2],
-                                                  group.sales,
-                                                  products)
-        group.sales.filtered = with(group.sales, subset(group.sales.filtered, date >= from & date <= to))
-        group.sales.new = subset(group.sales.filtered, group.sales.filtered$new)
-        if (nrow(group.sales.new) > 0) {
-            groups.filtered = with(group.sales.new, aggregate(totalprice, list(name=name), FUN))
+        
+        group.sales.filtered = NULL
+        if (!is.null(filter.by)) {
+            group.sales.filtered = getProductLifeData(date.limits[date.limit.index, 1],
+                                                      date.limits[date.limit.index, 2],
+                                                      group.sales,
+                                                      products)
+            group.sales.filtered = with(group.sales.filtered, subset(group.sales.filtered, date >= from & date <= to))
+            if (filter.by == "new") {
+                group.sales.filtered = subset(group.sales.filtered, group.sales.filtered$new)
+            } else if (filter.by == "existing") {
+                group.sales.filtered = subset(group.sales.filtered, !group.sales.filtered$new)
+            }
+        } else {
+            group.sales.filtered = with(group.sales, subset(group.sales, date >= from & date <= to))
+        }
+        if (nrow(group.sales.filtered) > 0) {
+            groups.filtered = with(group.sales.filtered, aggregate(totalprice, list(name=name), FUN))
             filtered.group.indices = which(rownames %in% groups.filtered$name)
             result[filtered.group.indices, date.limit.index + 1] = round(groups.filtered$x)
         }
@@ -476,62 +454,12 @@ getNewProductGroupSummary = function (date.limits, group.sales, products, FUN) {
     return (result)
 }
 
-getExistingProductGroupSummary = function (date.limits, group.sales, products, FUN) {
-    column.count = dim(date.limits)[1]
-    colnames = NULL
-    for (date.index in c(1:column.count)) {
-        colname = paste(date.limits[date.index,1], "-", date.limits[date.index,2], sep="")
-        colnames = c(colnames, colname)
-    }
-    rownames = sort(unique(group.sales$name))
-    row.count = length(unique(group.sales$name))
-    
-    result = matrix(nrow=row.count, ncol=column.count + 1, byrow = T)
-    colnames(result) = c("Name", colnames)
-    result[,1] = rownames
-        
-    for (date.limit.index in c(1:dim(date.limits)[1])) {
-        # aggregate orders results based on the first column (name in this case)
-        # make sure it is aligned with the first column that is currently in the result matrix
-        from = date.limits[date.limit.index, 1]
-        to = date.limits[date.limit.index, 2]
-        group.sales.filtered = getProductLifeData(date.limits[date.limit.index, 1],
-                                                  date.limits[date.limit.index, 2],
-                                                  group.sales,
-                                                  products)
-        group.sales.filtered = with(group.sales, subset(group.sales.filtered, date >= from & date <= to))
-        group.sales.existing = subset(group.sales.filtered, !group.sales.filtered$new)
-        if (nrow(group.sales.existing) > 0) {
-            groups.filtered = with(group.sales.existing, aggregate(totalprice, list(name=name), FUN))
-            filtered.group.indices = which(rownames %in% groups.filtered$name)
-            result[filtered.group.indices, date.limit.index + 1] = round(groups.filtered$x)
-        }
-    }
-    
-    for (column in c(2:(dim(result)[2]-1))) {
-        condition = is.na(result[, column+1])
-        divider = as.numeric(ifelse(is.na(result[, column+1]), rep(1, nrow(result)), result[,column+1]))
-        target = as.numeric(ifelse(is.na(result[, column]), rep(1, nrow(result)), result[, column]))
-        values = ifelse(divider == 1 & target != 1, 100, (target / divider) * 100)
-        result[, column] = paste(result[, column],
-                                 " (",
-                                 round(values, 2),
-                                 "%)",
-                                 sep="")
-    }
-    return (result)
-}
-
-
-print(getGroupSummary(date.limits, group.sales, sum))
-print(getGroupSummary(date.limits, group.sales, mean))
-print(getGroupSummary(date.limits, group.sales, median))
-
-print(getNewProductGroupSummary(date.limits, group.sales, products, sum))
-print(getNewProductGroupSummary(date.limits, group.sales, products, mean))
-print(getNewProductGroupSummary(date.limits, group.sales, products, median))
-
-print(getExistingProductGroupSummary(date.limits, group.sales, products, sum))
-print(getExistingProductGroupSummary(date.limits, group.sales, products, mean))
-print(getExistingProductGroupSummary(date.limits, group.sales, products, median))
-
+print(getGroupSummary(date.limits, group.sales, products, FUN=sum))
+print(getGroupSummary(date.limits, group.sales, products, "new", FUN=sum))
+print(getGroupSummary(date.limits, group.sales, products, "existing", FUN=sum))
+print(getGroupSummary(date.limits, group.sales, products, FUN=mean))
+print(getGroupSummary(date.limits, group.sales, products, "new", FUN=mean))
+print(getGroupSummary(date.limits, group.sales, products, "existing", FUN=mean))
+print(getGroupSummary(date.limits, group.sales, products, FUN=median))
+print(getGroupSummary(date.limits, group.sales, products, "new", FUN=median))
+print(getGroupSummary(date.limits, group.sales, products, "existing", FUN=median))
