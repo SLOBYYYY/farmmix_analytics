@@ -20,16 +20,19 @@ drv = JDBC("org.firebirdsql.jdbc.FBDriver",
 connection_live = connect.live()
 dbDisconnect(conn = connection_live)
 connection = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2015.fdb", sep=""),
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2015.fdb?encoding=ISO8859_1", sep=""),
                        "SYSDBA", dbPassword)
 connection_2014 = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2014.fdb", sep=""),
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2014.fdb?encoding=ISO8859_1", sep=""),
                        "SYSDBA", dbPassword)
 connection_2013 = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2013.fdb", sep=""),
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2013.fdb?encoding=ISO8859_1", sep=""),
                        "SYSDBA", dbPassword)
 connection_2010_2012 = dbConnect(drv, 
-                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2010-2012.fdb", sep=""),
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/", "dbs_bosz_2010-2012.fdb?encoding=ISO8859_1", sep=""),
+                       "SYSDBA", dbPassword)
+connection_2015_full = dbConnect(drv, 
+                       paste("jdbc:firebirdsql://127.0.0.1:3050//databases/2015/", "dbs_2015_full.fdb?encoding=ISO8859_1", sep=""),
                        "SYSDBA", dbPassword)
 connections = list(fmxYear(connection_2010_2012, 2010),
                 fmxYear(connection_2013, 2013),
