@@ -82,20 +82,53 @@ AgentSales = function (connection) {
                 return(get("result", thisEnv))
             },
             load = function (from, to) {
-                command = paste("select szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\", ",
-                                " csoport.nev, forgalmazo.nev, uzletkoto.nev, termek.id_termek, termek.nev,",
-                                " vevo.id_vevo",
-                                " from szamlatetel join ", 
-                                " szamla on szamla.id_szamla = szamlatetel.id_szamla join",
-                                " vevo on vevo.id_vevo = szamla.id_vevo join",
-                                " termek on termek.id_termek = szamlatetel.id_termek join",
-                                " forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join",
-                                " csoport on csoport.id_csoport = termek.id_csoport left join",
-                                " uzletkoto on uzletkoto.id_uzletkoto = szamla.id_uzletkoto",
-                                " where szamla.datum >='", from, "' and szamla.datum <='", to,"'", 
-                                sep="")
+                command = paste(
+                    #Azok a számlák amihez tartozik szállítólevél.
+                    #Itt az üzletkötőket a szállítóhoz tartozó vevő alapján számítom
+                    "select szamla.datum, szamla.sorszam, termek.nev, szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\", ",
+                    "forgalmazo.nev, csoport.nev, vevo.nev, uzletkoto.nev, telephelysync.nev, termek.id_termek, ",
+                    "vevo.id_vevo, 'UZLETKOTO-SZLEVEL' ",
+                    "from szamlatetel join  ",
+                    "szamla on szamla.id_szamla = szamlatetel.id_szamla join ",
+                    "kihivatkozas kh on kh.id_szamla = szamla.id_szamla join ",
+                    "szlevel on szlevel.id_szlevel = kh.id_szlevel join	",
+                    "telephelysync on telephelysync.id_telephelysync = szlevel.id_orig_telephely join ",
+                    "vevo on vevo.id_vevo = szlevel.id_vevo join ",
+                    "termek on termek.id_termek = szamlatetel.id_termek join ",
+                    "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join ",
+                    "csoport on csoport.id_csoport = termek.id_csoport left join ",
+                    "uzletkoto on uzletkoto.id_uzletkoto = vevo.id_uzletkoto ",
+                    "where szamla.datum >='", from, "' and szamla.datum <='", to, "' ",
+                    "union all ",
+                    #Ugyanaz mint az előző csak itt minden olyan számlát húzok be amihez nem tartozik szállítólevél. ",
+                    #Itt az üzletkötőket a számlához tartozó vevő alapján számítom ",
+                    "select szamla.datum, szamla.sorszam, termek.nev, szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\",	 ",
+                    "forgalmazo.nev, csoport.nev, vevo.nev, uzletkoto.nev, telephelysync.nev, termek.id_termek, ",
+                    "vevo.id_vevo, 'UZLETKOTO-SZAMLA' ",
+                    "from szamlatetel join  ",
+                    "szamla on szamla.id_szamla = szamlatetel.id_szamla join ",
+                    "telephelysync on telephelysync.id_telephelysync = szamla.id_orig_telephely join ",
+                    "vevo on vevo.id_vevo = szamla.id_vevo join ",
+                    "termek on termek.id_termek = szamlatetel.id_termek join ",
+                    "forgalmazo on forgalmazo.id_forgalmazo = termek.id_forgalmazo join ",
+                    "csoport on csoport.id_csoport = termek.id_csoport left join ",
+                    "uzletkoto on uzletkoto.id_uzletkoto = vevo.id_uzletkoto ",
+                    "where szamla.datum >='", from, "' and szamla.datum <='", to, "' and ",
+                    "szamla.id_szamla not in ( ",
+                        "select distinct id_szamla ",
+                        "from kihivatkozas ",
+                    ") or ",
+                    #Lehetséges, hogy a kihivatkozas táblában szerepel, de szlevel már nincs hozzá rendelve valamiért
+                    "szamla.id_szamla in ( ",
+                        "select distinct id_szamla ",
+                        "from kihivatkozas left join ",
+                        "szlevel on szlevel.id_szlevel = kihivatkozas.id_szlevel ",
+                        "where szlevel.sorszam is null",
+                    ") ",
+                    sep="")
+                
                 temp = dbGetQuery(localConnection, command)
-                colnames(temp) = c("totalprice", "group_name", "provider_name", "agent_name", "product_id", "product_name", "customer_id")
+                colnames(temp) = c("date", "bill_num", "product_name", "totalprice", "provider_name", "group_name", "customer_name", "agent_name", "original_site", "product_id", "customer_id", "agent_type")
                 assign("result", temp, thisEnv)
                 print("Data is loaded into memory")
             },
@@ -208,11 +241,14 @@ AgentSales = function (connection) {
         return(me)
     }
 }
+
 #c = connect.live()
-c = connection
+c = connection_2015_full
 as = AgentSales(c)
-as$load("2015-01-01", "2015-05-31")
-agents.result = as$report()
-write.csv(agents.result, "report/agent_sales.csv")
-write.csv(t(agents.result), "report/agent_sales_transposed.csv")
+as$load("2015-01-01", "2015-12-31")
+agents.report = as$report()
+agents.result = as$getResult()
+
+write.csv(t(agents.report), "report/agent_sales.csv")
+write.csv(agents.result, "report/full_data.csv")
 dbDisconnect(conn = c)
