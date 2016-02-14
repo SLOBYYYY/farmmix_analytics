@@ -38,10 +38,12 @@ AgentSales = function (connection) {
         imputeAgentName = function (data) {
             data.without.agents = is.na(data$agent_name)
             customer.ids.with.no.agents = unique(data[data.without.agents, 'customer_id'])
-            agents.of.customers = loadAgentNames(customer.ids.with.no.agents)
-            temp = merge(data[data.without.agents,], agents.of.customers, by="customer_id", all.x=T)
-            
-            data[which(data.without.agents),'agent_name'] = temp$agent_name.y
+            if (length(customer.ids.with.no.agents) > 0) {
+                agents.of.customers = loadAgentNames(customer.ids.with.no.agents)
+                temp = merge(data[data.without.agents,], agents.of.customers, by="customer_id", all.x=T)
+                
+                data[which(data.without.agents),'agent_name'] = temp$agent_name.y
+            }
             return (data)
         }
         aggregateForAgents = function (data, agents) {
