@@ -1,4 +1,12 @@
+topXResult = function (topx.percent, data) {
+    object = list(top.x.percent = topx.percent,
+                  result = data)
+    class(object) = "topXResult"
+    return(object)
+}
+
 TopX = function (connection) {
+    require("dplyr")
     thisEnv = environment()
     if (class(connection) == "JDBCConnection") {
         localConnection = connection
@@ -47,10 +55,10 @@ TopX = function (connection) {
                     print(paste("Nincs eladás ",
                                 ifelse(is.null(product.group), "az összes csoportban", paste("a(z) ", product.group, " csoportban",sep="")),
                                 ifelse(is.null(provider), " az összes szolgáltatóval", paste(" a(z) ", provider, " szolgáltatóval",sep="")),
-                                ifelse(is.null(agent.data), " az összes üzletkötővel", paste("'", agent.data[2], "' nevű üzletkötővel", sep="")),
+                                ifelse(is.null(agent.data), " az összes üzletkötővel", paste(" '", agent.data[2], "' nevű üzletkötővel", sep="")),
                                 sep=""))
+                    return(topXResult(-1, NA))
                 }
-                
                 # Make all char columns to a factor
                 result$customer = factor(result$customer, ordered=T)
                 result$product = factor(result$product, ordered=T)
@@ -87,8 +95,10 @@ TopX = function (connection) {
                         topx.result.aggregated[i,'diffratio'] = paste(round(result.sd / result.mean * 100,2),"%")
                         result.stats = boxplot.stats(temp$unitprice, coef=2)
                         topx.result.aggregated[i,'outliers'] = length(result.stats$out)
-                        ratio = round(result.mean / mean(temp$factory_price, na.rm = T) * 100, 2)
-                        topx.result.aggregated[i,'factoryratio'] = ratio
+                        # If factory_price is 0 or NA, we can't do much about it but those products are
+                        # not really important anyway
+                        factory.ratio = round(result.mean / median(temp$factory_price, na.rm = T) * 100, 2)
+                        topx.result.aggregated[i,'factoryratio'] = factory.ratio
                     }
                     
                     topx.result.aggregated[i,'topx'] = round(topx.result.aggregated[i,]$total / total.sold.items * 100, 2)
@@ -99,7 +109,7 @@ TopX = function (connection) {
                 topx.is.percent.of.total = round(sum(topx.result.aggregated$total, na.rm = T) / total.sold.items * 100, 2)
                 
                 if (aggregate.by == "product") {
-                    colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Átlag", "Median", "Eloszlás", "Eloszlás/Átlag%", "Kívülálló", "Gyári ár %", "Top X%", "Top X% kumulatív")
+                    colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Átlag", "Median", "Eloszlás", "Eloszlás/Átlag%", "Kívülálló (db)", "Eladár/Gyári ár %", "Top X%", "Top X% kumulatív")
                 } else {
                     colnames(topx.result.aggregated) = c("Név", "Total", "Mennyiség", "Top X%", "Top X% kumulatív")
                 }
@@ -156,6 +166,9 @@ TopX = function (connection) {
             getEnv = function () {
                 return(get("thisEnv", thisEnv))
             },
+            getResult = function () {
+                return(get("result", thisEnv))
+            },
             load = function () {
                 command = paste("select vevo.nev, termek.nev, szamlatetel.eladar, szamlatetel.mennyiseg,",
                                 "szamlatetel.eladar * szamlatetel.mennyiseg as \"EladarSum\", szamla.id_uzletkoto,",
@@ -188,5 +201,7 @@ TopX = function (connection) {
         assign('this', me, envir = thisEnv)
         class(me) = append(class(me), "TopX")
         return(me)
+    } else {
+        stop("Only JDBCConnection is allowed for parameter 'connection'")
     }
 }
